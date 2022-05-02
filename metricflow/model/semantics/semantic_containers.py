@@ -240,7 +240,7 @@ class DataSourceSemantics:
         res = []
         for name, links in self._data_source_links.adj(data_source_name).items():
             for link in links:
-                if link.via_from.name.element_name == identifier_spec.element_name:
+                if link.via_from.reference.element_name == identifier_spec.element_name:
                     res.append(name)
                     break
 
@@ -303,9 +303,9 @@ class DataSourceSemantics:
             )
 
         for measure in data_source.measures:
-            if measure.name in self._measure_aggs and self._measure_aggs[measure.name] != measure.agg:
+            if measure.reference in self._measure_aggs and self._measure_aggs[measure.reference] != measure.agg:
                 errors.append(
-                    f"conflicting aggregation (agg) for measure `{measure.name}` registered as `{self._measure_aggs[measure.name]}`; "
+                    f"conflicting aggregation (agg) for measure `{measure.reference}` registered as `{self._measure_aggs[measure.reference]}`; "
                     f"Got `{measure.agg}"
                 )
 
@@ -329,9 +329,9 @@ class DataSourceSemantics:
                 self._element_types[element.name] = type(element)
 
         for measure in data_source.measures:
-            self._measure_aggs[measure.name] = measure.agg
-            self._measure_index[measure.name].append(data_source)
-            self._measure_to_aggregation_time_dimension[measure.name] = measure.checked_agg_time_dimension
+            self._measure_aggs[measure.reference] = measure.agg
+            self._measure_index[measure.reference].append(data_source)
+            self._measure_to_aggregation_time_dimension[measure.reference] = measure.checked_agg_time_dimension
         for dimension in data_source.dimensions:
             self._linkable_reference_index[dimension.name].append(data_source)
             self._dimension_index[dimension.name].append(data_source)
@@ -339,6 +339,7 @@ class DataSourceSemantics:
             self._identifier_ref_to_entity[identifier.name] = identifier.entity
             self._entity_index[identifier.entity].append(data_source)
             self._linkable_reference_index[identifier.name].append(data_source)
+
 
         dsource_partition = data_source.partition
         # Add links to other data sources based on the names and types of identifiers available.
