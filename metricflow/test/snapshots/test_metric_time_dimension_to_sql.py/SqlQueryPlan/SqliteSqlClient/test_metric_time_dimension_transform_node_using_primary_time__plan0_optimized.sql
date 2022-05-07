@@ -1,5 +1,5 @@
 -- Read Elements From Data Source 'bookings_source'
--- Set Measures to Aggregate By 'ds'
+-- Plot by Time Dimension 'ds'
 SELECT
   1 AS bookings
   , CASE WHEN is_instant THEN 1 ELSE 0 END AS instant_bookings
@@ -40,11 +40,11 @@ SELECT
   , '__DATE_TRUNC_NOT_SUPPORTED__' AS create_a_cycle_in_the_join_graph__booking_paid_at__month
   , '__DATE_TRUNC_NOT_SUPPORTED__' AS create_a_cycle_in_the_join_graph__booking_paid_at__quarter
   , '__DATE_TRUNC_NOT_SUPPORTED__' AS create_a_cycle_in_the_join_graph__booking_paid_at__year
-  , ds AS __ts
-  , '__DATE_TRUNC_NOT_SUPPORTED__' AS __ts__week
-  , '__DATE_TRUNC_NOT_SUPPORTED__' AS __ts__month
-  , '__DATE_TRUNC_NOT_SUPPORTED__' AS __ts__quarter
-  , '__DATE_TRUNC_NOT_SUPPORTED__' AS __ts__year
+  , ds AS metric_time
+  , '__DATE_TRUNC_NOT_SUPPORTED__' AS metric_time__week
+  , '__DATE_TRUNC_NOT_SUPPORTED__' AS metric_time__month
+  , '__DATE_TRUNC_NOT_SUPPORTED__' AS metric_time__quarter
+  , '__DATE_TRUNC_NOT_SUPPORTED__' AS metric_time__year
   , listing_id AS listing
   , guest_id AS guest
   , host_id AS host

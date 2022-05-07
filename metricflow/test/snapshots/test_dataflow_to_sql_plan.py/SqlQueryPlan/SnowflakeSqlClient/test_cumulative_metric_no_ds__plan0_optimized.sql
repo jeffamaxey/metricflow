@@ -1,4 +1,5 @@
 -- Read Elements From Data Source 'revenue'
+-- Plot by Time Dimension 'ds'
 -- Pass Only Elements:
 --   ['txn_revenue']
 -- Aggregate Measures

@@ -1,6 +1,6 @@
 <SqlQueryPlan>
     <SqlSelectStatementNode>
-        <!-- description = Set Measures to Aggregate By 'booking_paid_at' -->
+        <!-- description = Plot by Time Dimension 'booking_paid_at' -->
         <!-- node_id = ss_0 -->
         <!-- col0 =                                                  -->
         <!--   {'class': 'SqlSelectColumn',                          -->
@@ -137,23 +137,23 @@
         <!-- col33 =                                                  -->
         <!--   {'class': 'SqlSelectColumn',                           -->
         <!--    'expr': SqlColumnReferenceExpression(node_id=cr_33),  -->
-        <!--    'column_alias': '__ts'}                               -->
+        <!--    'column_alias': 'metric_time'}                        -->
         <!-- col34 =                                                  -->
         <!--   {'class': 'SqlSelectColumn',                           -->
         <!--    'expr': SqlColumnReferenceExpression(node_id=cr_34),  -->
-        <!--    'column_alias': '__ts__week'}                         -->
+        <!--    'column_alias': 'metric_time__week'}                  -->
         <!-- col35 =                                                  -->
         <!--   {'class': 'SqlSelectColumn',                           -->
         <!--    'expr': SqlColumnReferenceExpression(node_id=cr_35),  -->
-        <!--    'column_alias': '__ts__month'}                        -->
+        <!--    'column_alias': 'metric_time__month'}                 -->
         <!-- col36 =                                                  -->
         <!--   {'class': 'SqlSelectColumn',                           -->
         <!--    'expr': SqlColumnReferenceExpression(node_id=cr_36),  -->
-        <!--    'column_alias': '__ts__quarter'}                      -->
+        <!--    'column_alias': 'metric_time__quarter'}               -->
         <!-- col37 =                                                  -->
         <!--   {'class': 'SqlSelectColumn',                           -->
         <!--    'expr': SqlColumnReferenceExpression(node_id=cr_37),  -->
-        <!--    'column_alias': '__ts__year'}                         -->
+        <!--    'column_alias': 'metric_time__year'}                  -->
         <!-- col38 =                                                  -->
         <!--   {'class': 'SqlSelectColumn',                           -->
         <!--    'expr': SqlColumnReferenceExpression(node_id=cr_38),  -->
