@@ -35,7 +35,7 @@ class MetricFlowDagToText(DagNodeVisitor[str]):
 
             if len(str(displayed_property.value)) > self.MAX_WIDTH or "\n" in str(displayed_property.value):
                 value_str_split = pformat_big_objects(displayed_property.value).split("\n")
-                max_value_str_length = max([len(x) for x in value_str_split])
+                max_value_str_length = max(len(x) for x in value_str_split)
                 node_fields.append(
                     jinja2.Template(
                         textwrap.dedent(
@@ -56,26 +56,26 @@ class MetricFlowDagToText(DagNodeVisitor[str]):
                         ),
                     )
                 )
-                for value_str in value_str_split:
-                    node_fields.append(
-                        jinja2.Template(
-                            textwrap.dedent(
-                                """\
+                node_fields.extend(
+                    jinja2.Template(
+                        textwrap.dedent(
+                            """\
                                 <!--   {{ value }} {{ padding }} -->
                                 """
-                            ),
-                            undefined=jinja2.StrictUndefined,
-                        ).render(
-                            value=value_str,
-                            padding=" "
-                            * (
-                                (len("<!-- ") + max_value_str_length + len(" -->"))
-                                - len("<!-- ")
-                                - len(value_str)
-                                - len(" -->")
-                            ),
-                        )
+                        ),
+                        undefined=jinja2.StrictUndefined,
+                    ).render(
+                        value=value_str,
+                        padding=" "
+                        * (
+                            (len("<!-- ") + max_value_str_length + len(" -->"))
+                            - len("<!-- ")
+                            - len(value_str)
+                            - len(" -->")
+                        ),
                     )
+                    for value_str in value_str_split
+                )
             else:
                 node_fields.append(
                     jinja2.Template(
@@ -113,10 +113,10 @@ class MetricFlowDagToText(DagNodeVisitor[str]):
         )
 
     def visit_node(self, node: DagNode) -> str:  # noqa: D
-        parent_node_descriptions = []
-        for parent_node in node.parent_nodes:
-            parent_node_descriptions.append(parent_node.accept_dag_node_visitor(self))
-
+        parent_node_descriptions = [
+            parent_node.accept_dag_node_visitor(self)
+            for parent_node in node.parent_nodes
+        ]
         return self._format_to_text(node=node, inner_contents="\n".join(parent_node_descriptions))
 
     def to_text(self, root_node: DagNode) -> str:

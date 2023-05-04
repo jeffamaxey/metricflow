@@ -429,7 +429,7 @@ def create_extended_date_model_tables(mf_test_session_state: MetricFlowTestSessi
         listing_id += 1
         # Have 10 different listing IDs so that we get different distinct values when we set the granularity
         # to daily / weekly / monthly
-        listing_id = listing_id % 10
+        listing_id %= 10
         current_date = current_date + datetime.timedelta(days=1)
 
         booking_id += 1
@@ -470,9 +470,12 @@ def create_extended_date_model_tables(mf_test_session_state: MetricFlowTestSessi
     current_date = pd.Timestamp(start_date)
     fct_bookings_extended_monthly_data = []
     while current_date <= end_date:
-        fct_bookings_extended_monthly_data.append((10, True, current_date.strftime(ISO8601_PYTHON_FORMAT)))
-        fct_bookings_extended_monthly_data.append((5, False, current_date.strftime(ISO8601_PYTHON_FORMAT)))
-
+        fct_bookings_extended_monthly_data.extend(
+            (
+                (10, True, current_date.strftime(ISO8601_PYTHON_FORMAT)),
+                (5, False, current_date.strftime(ISO8601_PYTHON_FORMAT)),
+            )
+        )
         current_date += TimeGranularity.MONTH.period_begin_offset
 
     sql_table = SqlTable(schema_name=schema, table_name="fct_bookings_extended_monthly")

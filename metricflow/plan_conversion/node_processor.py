@@ -63,14 +63,14 @@ class PreDimensionJoinNodeProcessor(Generic[SqlDataSetT]):
             # Constrain the time range if specified.
             if time_range_constraint:
                 node_output_data_set = self._node_data_set_resolver.get_output_data_set(source_node)
-                constrain_time = False
-                for time_dimension_instance in node_output_data_set.instance_set.time_dimension_instances:
-                    if (
-                        time_dimension_instance.spec.element_name == primary_time_dimension_name
+                constrain_time = any(
+                    (
+                        time_dimension_instance.spec.element_name
+                        == primary_time_dimension_name
                         and len(time_dimension_instance.spec.identifier_links) == 0
-                    ):
-                        constrain_time = True
-                        break
+                    )
+                    for time_dimension_instance in node_output_data_set.instance_set.time_dimension_instances
+                )
                 if constrain_time:
                     processed_nodes.append(
                         ConstrainTimeRangeNode(parent_node=source_node, time_range_constraint=time_range_constraint)
@@ -97,16 +97,14 @@ class PreDimensionJoinNodeProcessor(Generic[SqlDataSetT]):
             for identifier in data_set.instance_set.spec_set.identifier_specs:
                 identifier_node_index[identifier].append(node)
 
-        # Relevant identifier element names are the identifiers listed in the identifier links of the desired linkable
-        # specs.
-        relevant_identifier_element_names = set()
         # One of the element names in linkable_element_names must exist in the right data set for it to be useful in
         # satisfying the desired linkable specs.
         linkable_element_names = {x.element_name for x in desired_linkable_specs}
-        for linkable_spec in desired_linkable_specs:
-            if len(linkable_spec.identifier_links) == 2:
-                relevant_identifier_element_names.add(linkable_spec.identifier_links[1].element_name)
-
+        relevant_identifier_element_names = {
+            linkable_spec.identifier_links[1].element_name
+            for linkable_spec in desired_linkable_specs
+            if len(linkable_spec.identifier_links) == 2
+        }
         for node in nodes:
             data_set = self._node_data_set_resolver.get_output_data_set(node)
 
@@ -186,11 +184,10 @@ class PreDimensionJoinNodeProcessor(Generic[SqlDataSetT]):
         # The primary time dimension is used everywhere, so don't count it unless specifically desired in linkable spec
         # that has identifier links.
         primary_time_dimension_used_in_linked_spec = any(
-            [
-                len(linkable_spec.identifier_links) > 0
-                and linkable_spec.element_name == primary_time_dimension_reference.element_name
-                for linkable_spec in desired_linkable_specs
-            ]
+            len(linkable_spec.identifier_links) > 0
+            and linkable_spec.element_name
+            == primary_time_dimension_reference.element_name
+            for linkable_spec in desired_linkable_specs
         )
 
         if (

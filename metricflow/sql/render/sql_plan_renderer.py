@@ -131,9 +131,13 @@ class DefaultSqlQueryPlanRenderer(SqlQueryPlanRenderer):
         if from_source.is_table:
             from_section_lines.append(f"FROM {from_render_result.sql} {from_source_alias}")
         else:
-            from_section_lines.append("FROM (")
-            from_section_lines.append(textwrap.indent(from_render_result.sql, prefix=self.INDENT))
-            from_section_lines.append(f") {from_source_alias}")
+            from_section_lines.extend(
+                (
+                    "FROM (",
+                    textwrap.indent(from_render_result.sql, prefix=self.INDENT),
+                    f") {from_source_alias}",
+                )
+            )
         from_section = "\n".join(from_section_lines)
 
         return from_section, from_render_result.execution_parameters
@@ -162,19 +166,31 @@ class DefaultSqlQueryPlanRenderer(SqlQueryPlanRenderer):
             params.update(on_condition_rendered.execution_parameters)
 
             if join_description.right_source.is_table:
-                join_section_lines.append(join_description.join_type.value)
-                join_section_lines.append(
-                    textwrap.indent(
-                        f"{right_source_rendered.sql} {join_description.right_source_alias}", prefix=self.INDENT
+                join_section_lines.extend(
+                    (
+                        join_description.join_type.value,
+                        textwrap.indent(
+                            f"{right_source_rendered.sql} {join_description.right_source_alias}",
+                            prefix=self.INDENT,
+                        ),
                     )
                 )
             else:
-                join_section_lines.append(f"{join_description.join_type.value} (")
-                join_section_lines.append(textwrap.indent(right_source_rendered.sql, prefix=self.INDENT))
-                join_section_lines.append(f") {join_description.right_source_alias}")
-            join_section_lines.append("ON")
-            join_section_lines.append(textwrap.indent(on_condition_rendered.sql, prefix=self.INDENT))
-
+                join_section_lines.extend(
+                    (
+                        f"{join_description.join_type.value} (",
+                        textwrap.indent(
+                            right_source_rendered.sql, prefix=self.INDENT
+                        ),
+                        f") {join_description.right_source_alias}",
+                    )
+                )
+            join_section_lines.extend(
+                (
+                    "ON",
+                    textwrap.indent(on_condition_rendered.sql, prefix=self.INDENT),
+                )
+            )
         return "\n".join(join_section_lines), params
 
     def _render_group_by_section(self, group_by_columns: Sequence[SqlSelectColumn]) -> Tuple[str, SqlBindParameters]:
@@ -194,8 +210,14 @@ class DefaultSqlQueryPlanRenderer(SqlQueryPlanRenderer):
             params.update(group_by_expr_rendered.execution_parameters)
             if first:
                 first = False
-                group_by_section_lines.append("GROUP BY")
-                group_by_section_lines.append(textwrap.indent(group_by_expr_rendered.sql, prefix=self.INDENT))
+                group_by_section_lines.extend(
+                    (
+                        "GROUP BY",
+                        textwrap.indent(
+                            group_by_expr_rendered.sql, prefix=self.INDENT
+                        ),
+                    )
+                )
             else:
                 group_by_section_lines.append(textwrap.indent(f", {group_by_expr_rendered.sql}", prefix=self.INDENT))
 
@@ -242,20 +264,14 @@ class DefaultSqlQueryPlanRenderer(SqlQueryPlanRenderer):
 
             order_by_section = "ORDER BY " + ", ".join(order_by_items)
 
-        # Render "LIMIT" section
-        limit_section = None
-        if node.limit:
-            limit_section = f"LIMIT {node.limit}"
-
+        limit_section = f"LIMIT {node.limit}" if node.limit else None
         # Combine the sections into a single string.
         sections_to_render = []
 
         if description_section:
             sections_to_render.append(description_section)
 
-        sections_to_render.append(select_section)
-        sections_to_render.append(from_section)
-
+        sections_to_render.extend((select_section, from_section))
         if join_section:
             sections_to_render.append(join_section)
 

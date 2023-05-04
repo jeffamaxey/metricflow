@@ -63,25 +63,28 @@ class DimensionConsistencyRule(ModelValidationRule):
             data_source_name=data_source_name, dimension_name=dimension.name.element_name
         )
 
-        if dimension.type == DimensionType.TIME:
-            if dimension.name not in time_dims_to_granularity and dimension.type_params:
-                time_dims_to_granularity[dimension.name] = dimension.type_params.time_granularity
+        if (
+            dimension.type == DimensionType.TIME
+            and dimension.name not in time_dims_to_granularity
+            and dimension.type_params
+        ):
+            time_dims_to_granularity[dimension.name] = dimension.type_params.time_granularity
 
-                # The primary time dimension can be of different time granularities, so don't check for it.
-                if (
-                    dimension.type_params is not None
-                    and not dimension.type_params.is_primary
-                    and dimension.type_params.time_granularity != time_dims_to_granularity[dimension.name]
-                ):
-                    expected_granularity = time_dims_to_granularity[dimension.name]
-                    issues.append(
-                        ValidationError(
-                            model_object_reference=obj_ref,
-                            message=f"Time granularity must be the same for time dimensions with the same name. "
-                            f"Problematic dimension: {dimension.name.element_name} in data source with name: "
-                            f"`{data_source_name}`. Expected granularity is {expected_granularity.name}.",
-                        )
+            # The primary time dimension can be of different time granularities, so don't check for it.
+            if (
+                dimension.type_params is not None
+                and not dimension.type_params.is_primary
+                and dimension.type_params.time_granularity != time_dims_to_granularity[dimension.name]
+            ):
+                expected_granularity = time_dims_to_granularity[dimension.name]
+                issues.append(
+                    ValidationError(
+                        model_object_reference=obj_ref,
+                        message=f"Time granularity must be the same for time dimensions with the same name. "
+                        f"Problematic dimension: {dimension.name.element_name} in data source with name: "
+                        f"`{data_source_name}`. Expected granularity is {expected_granularity.name}.",
                     )
+                )
 
         return issues
 

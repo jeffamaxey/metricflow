@@ -98,11 +98,11 @@ class OnePrimaryIdentifierPerDataSourceRule(ModelValidationRule):
     @staticmethod
     @validate_safely(whats_being_done="checking data source has only one primary identifier")
     def _only_one_primary_identifier(data_source: DataSource) -> List[ValidationIssue]:
-        primary_identifier_names: MutableSet[str] = set()
-        for identifier in data_source.identifiers or []:
-            if identifier.type == IdentifierType.PRIMARY:
-                primary_identifier_names.add(identifier.name.element_name)
-
+        primary_identifier_names: MutableSet[str] = {
+            identifier.name.element_name
+            for identifier in data_source.identifiers or []
+            if identifier.type == IdentifierType.PRIMARY
+        }
         if len(primary_identifier_names) > 1:
             return [
                 ValidationFutureError(
@@ -152,16 +152,16 @@ class IdentifierConsistencyRule(ModelValidationRule):
 
     @staticmethod
     def _get_sub_identifier_context(data_source: DataSource) -> Sequence[SubIdentifierContext]:
-        contexts = []
-        for identifier in data_source.identifiers or []:
-            contexts.append(
-                SubIdentifierContext(
-                    data_source_name=data_source.name,
-                    identifier_reference=identifier.name,
-                    sub_identifier_names=tuple(IdentifierConsistencyRule._get_sub_identifier_names(identifier)),
-                )
+        return [
+            SubIdentifierContext(
+                data_source_name=data_source.name,
+                identifier_reference=identifier.name,
+                sub_identifier_names=tuple(
+                    IdentifierConsistencyRule._get_sub_identifier_names(identifier)
+                ),
             )
-        return contexts
+            for identifier in data_source.identifiers or []
+        ]
 
     @staticmethod
     @validate_safely(whats_being_done="running model validation to ensure identifiers have consistent sub-identifiers")
@@ -183,24 +183,26 @@ class IdentifierConsistencyRule(ModelValidationRule):
         # Filter out anything that has fewer than 2 distinct sub-identifier sets
         invalid_sub_identifier_configurations = dict(
             filter(
-                lambda item: len(set([context.sub_identifier_names for context in item[1]])) >= 2,
+                lambda item: len(
+                    {context.sub_identifier_names for context in item[1]}
+                )
+                >= 2,
                 identifier_to_sub_identifier_contexts.items(),
             )
         )
 
         # convert each invalid identifier configuration into a validation warning
-        for identifier_name, sub_identifier_contexts in invalid_sub_identifier_configurations.items():
-            issues.append(
-                ValidationWarning(
-                    model_object_reference=ValidationIssue.make_object_reference(
-                        data_source_name=sub_identifier_contexts[0].data_source_name,
-                        identifier_name=identifier_name,
-                    ),
-                    message=(
-                        f"Identifier '{identifier_name}' does not have consistent sub-identifiers "
-                        f"throughout the model: {list(sorted(sub_identifier_contexts, key=lambda x: x.sub_identifier_names))}"
-                    ),
-                )
+        issues.extend(
+            ValidationWarning(
+                model_object_reference=ValidationIssue.make_object_reference(
+                    data_source_name=sub_identifier_contexts[0].data_source_name,
+                    identifier_name=identifier_name,
+                ),
+                message=(
+                    f"Identifier '{identifier_name}' does not have consistent sub-identifiers "
+                    f"throughout the model: {list(sorted(sub_identifier_contexts, key=lambda x: x.sub_identifier_names))}"
+                ),
             )
-
+            for identifier_name, sub_identifier_contexts in invalid_sub_identifier_configurations.items()
+        )
         return issues

@@ -50,27 +50,24 @@ class ElementConsistencyRule(ModelValidationRule):
                         model_object_reference=ValidationIssue.make_object_reference(
                             data_source_name=data_source_name,
                         ),
-                        message=f"In data source {data_source_name}, element `{element_name}` is of type "
-                        f"{element_type}, but it was previously used earlier in the model as "
-                        f"{name_to_type[element_name]}",
+                        message=f"In data source {data_source_name}, element `{element_name}` is of type {element_type}, but it was previously used earlier in the model as {existing_type}",
                     )
                 )
-        else:
-            if add_to_dict:
-                name_to_type[element_name] = element_type
-            elif element_type != ModelObjectType.DIMENSION:
-                # TODO: Can't check dimensions effectively as their name changes.
-                issues.append(
-                    ValidationError(
-                        model_object_reference=ValidationIssue.make_object_reference(
-                            data_source_name=data_source_name,
-                            object_type=element_type,
-                            object_name=element_name,
-                        ),
-                        message=f"In data source {data_source_name}, the element named {element_name} "
-                        f"of type {element_type} is not known in the model.",
-                    )
+        elif add_to_dict:
+            name_to_type[element_name] = element_type
+        elif element_type != ModelObjectType.DIMENSION:
+            # TODO: Can't check dimensions effectively as their name changes.
+            issues.append(
+                ValidationError(
+                    model_object_reference=ValidationIssue.make_object_reference(
+                        data_source_name=data_source_name,
+                        object_type=element_type,
+                        object_name=element_name,
+                    ),
+                    message=f"In data source {data_source_name}, the element named {element_name} "
+                    f"of type {element_type} is not known in the model.",
                 )
+            )
 
         return issues
 

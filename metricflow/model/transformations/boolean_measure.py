@@ -20,7 +20,10 @@ class BooleanMeasureAggregationRule(ModelTransformRule):
                         f"aggregation type `boolean`, which has been deprecated. Please use `sum_boolean` "
                         f"instead."
                     )
-                if measure.agg == AggregationType.BOOLEAN or measure.agg == AggregationType.SUM_BOOLEAN:
+                if measure.agg in [
+                    AggregationType.BOOLEAN,
+                    AggregationType.SUM_BOOLEAN,
+                ]:
                     if measure.expr:
                         measure.expr = f"CASE WHEN {measure.expr} THEN 1 ELSE 0 END"
                     else:

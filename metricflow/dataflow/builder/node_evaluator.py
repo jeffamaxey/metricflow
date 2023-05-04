@@ -149,12 +149,14 @@ class NodeEvaluatorForLinkableInstances(Generic[SourceDataSetT]):
                 if len(identifier_spec_in_node.identifier_links) > 0:
                     continue
 
-                identifier_instance = None
-                for instance in data_set.instance_set.identifier_instances:
-                    if instance.spec == identifier_spec_in_node:
-                        identifier_instance = instance
-                        break
-
+                identifier_instance = next(
+                    (
+                        instance
+                        for instance in data_set.instance_set.identifier_instances
+                        if instance.spec == identifier_spec_in_node
+                    ),
+                    None,
+                )
                 if identifier_instance is None:
                     raise RuntimeError(f"Could not find identifier instance with name ({identifier_spec_in_node})")
                 ident = self._data_source_semantics.get_data_source_element(identifier_instance.defined_from[0])
@@ -199,7 +201,7 @@ class NodeEvaluatorForLinkableInstances(Generic[SourceDataSetT]):
 
                 # If this node can satisfy some linkable specs, it could be useful to join on, so add it to the
                 # candidate list.
-                if len(satisfiable_linkable_specs) > 0:
+                if satisfiable_linkable_specs:
                     join_on_partition_dimensions = self._partition_resolver.resolve_partition_dimension_joins(
                         start_node_spec_set=start_node_spec_set,
                         node_to_join_spec_set=data_set.instance_set.spec_set,
@@ -239,11 +241,10 @@ class NodeEvaluatorForLinkableInstances(Generic[SourceDataSetT]):
         """
         updated_candidate_data_sets: List[JoinLinkableInstancesRecipe] = []
         for candidate_for_join in candidates_for_join:
-            updated_satisfiable_linkable_specs = list(
-                set(candidate_for_join.satisfiable_linkable_specs) - set(already_satisfisfied_linkable_specs)
-            )
-
-            if len(updated_satisfiable_linkable_specs) > 0:
+            if updated_satisfiable_linkable_specs := list(
+                set(candidate_for_join.satisfiable_linkable_specs)
+                - set(already_satisfisfied_linkable_specs)
+            ):
                 updated_candidate_data_sets.append(
                     JoinLinkableInstancesRecipe(
                         node_to_join=candidate_for_join.node_to_join,
@@ -310,7 +311,7 @@ class NodeEvaluatorForLinkableInstances(Generic[SourceDataSetT]):
         # Using a greedy approach, try to get the "possibly_joinable_linkable_specs" by iteratively joining nodes with
         # the most matching linkable specs. We try to join nodes with the most matching specs to minimize the number of
         # joins that we have to do to. A knapsack solution is ideal, but punting on that for simplicity.
-        while len(possibly_joinable_linkable_specs) > 0:
+        while possibly_joinable_linkable_specs:
             logger.info(f"Looking for linkable specs:\n{pformat_big_objects(possibly_joinable_linkable_specs)}")
 
             # We've run out of candidate data sets, but there are more linkable specs that we need. That means the

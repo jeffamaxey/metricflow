@@ -131,4 +131,7 @@ class SameDataSourceReferenceChecker(InstanceSetTransform[bool]):
         combined.extend(instance_set.time_dimension_instances)
         combined.extend(instance_set.identifier_instances)
 
-        return all([all([y.is_from(self._data_source_reference) for y in x.defined_from]) for x in combined])
+        return all(
+            all(y.is_from(self._data_source_reference) for y in x.defined_from)
+            for x in combined
+        )

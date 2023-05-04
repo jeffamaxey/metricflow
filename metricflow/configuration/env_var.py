@@ -26,9 +26,9 @@ class EnvironmentVariable:
         specified, this throws an exception.
         """
         value = os.getenv(self._name)
-        if value is None and self._default_value is not None:
-            return self._default_value
         if value is None:
+            if self._default_value is not None:
+                return self._default_value
             raise RuntimeError(f"Environment variable {self._name} is not defined.")
         return value
 
@@ -60,7 +60,7 @@ class EnvironmentVariable:
     @staticmethod
     def _is_valid_bool(bool_str: str) -> bool:
         """Checks if the given string can be converted into a bool."""
-        return bool_str.lower() == "true" or bool_str.lower() == "false"
+        return bool_str.lower() in {"true", "false"}
 
     def get_bool(self) -> bool:
         """Returns the value of this environment variable as a bool.

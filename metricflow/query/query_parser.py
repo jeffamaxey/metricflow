@@ -91,13 +91,11 @@ class MetricFlowQueryParser:
                 self._known_dimension_element_references.append(linkable.name)
             elif linkable.type == DimensionType.TIME:
                 self._known_time_dimension_element_references.append(linkable.name)
-            elif (
-                linkable.type == IdentifierType.FOREIGN
-                or linkable.type == IdentifierType.PRIMARY
-                or linkable.type == IdentifierType.UNIQUE
-            ):
-                pass
-            else:
+            elif linkable.type not in [
+                IdentifierType.FOREIGN,
+                IdentifierType.PRIMARY,
+                IdentifierType.UNIQUE,
+            ]:
                 raise RuntimeError(f"Unhandled linkable type: {linkable.type}")
 
         self._known_metric_names = set(self._metric_semantics.metric_names)
@@ -390,17 +388,16 @@ class MetricFlowQueryParser:
                 requested_linkable_specs.partial_time_dimension_specs
             )
             and not time_granularity
-        ):
-            if self._metrics_have_same_time_granularities(metric_specs):
-                _, replace_with_time_dimension_spec = self._find_replacement_for_primary_time_dimension(
-                    partial_time_dimension_spec_replacements
+        ) and self._metrics_have_same_time_granularities(metric_specs):
+            _, replace_with_time_dimension_spec = self._find_replacement_for_primary_time_dimension(
+                partial_time_dimension_spec_replacements
+            )
+            output_column_name_overrides.append(
+                OutputColumnNameOverride(
+                    time_dimension_spec=replace_with_time_dimension_spec,
+                    output_column_name=self._primary_time_dimension_reference.element_name,
                 )
-                output_column_name_overrides.append(
-                    OutputColumnNameOverride(
-                        time_dimension_spec=replace_with_time_dimension_spec,
-                        output_column_name=self._primary_time_dimension_reference.element_name,
-                    )
-                )
+            )
 
         if limit is not None and limit < 0:
             raise InvalidQueryException(f"Limit was specified as {limit}, which is < 0.")
@@ -455,10 +452,9 @@ class MetricFlowQueryParser:
         """Adjust the time range constraint so that it matches the boundaries of the granularity of the result."""
         self._time_granularity_solver.validate_time_granularity(metric_specs, time_dimension_specs)
 
-        smallest_primary_time_granularity_in_query = self._find_smallest_primary_time_dimension_spec_granularity(
+        if smallest_primary_time_granularity_in_query := self._find_smallest_primary_time_dimension_spec_granularity(
             time_dimension_specs
-        )
-        if smallest_primary_time_granularity_in_query:
+        ):
             adjusted_to_granularity = smallest_primary_time_granularity_in_query
 
         else:
@@ -489,15 +485,14 @@ class MetricFlowQueryParser:
     def _primary_time_dimension_specified_without_granularity(
         self, partial_time_dimension_specs: Sequence[PartialTimeDimensionSpec]
     ) -> bool:
-        # This detects a user query like: "query --metrics monthly_bookings --dimensions ds"
-        # The granularity for "ds" is not specified by the user.
-        for time_dimension_spec in partial_time_dimension_specs:
-            if (
-                time_dimension_spec.element_name == self._primary_time_dimension_reference.element_name
+        return any(
+            (
+                time_dimension_spec.element_name
+                == self._primary_time_dimension_reference.element_name
                 and time_dimension_spec.identifier_links == ()
-            ):
-                return True
-        return False
+            )
+            for time_dimension_spec in partial_time_dimension_specs
+        )
 
     def _metrics_have_same_time_granularities(self, metric_specs: Sequence[MetricSpec]) -> bool:
         (min_granularity, max_granularity,) = self._time_granularity_solver.local_dimension_granularity_range(
@@ -520,7 +515,7 @@ class MetricFlowQueryParser:
         ]
 
         primary_time_dimension_specs.sort(key=lambda x: x.time_granularity.to_int())
-        if len(primary_time_dimension_specs) > 0:
+        if primary_time_dimension_specs:
             return primary_time_dimension_specs[0].time_granularity
         else:
             return None
@@ -627,18 +622,21 @@ class MetricFlowQueryParser:
         # TODO: distinguish between dimensions that invalid via typo vs ambiguous join path
         valid_linkable_specs = self._metric_semantics.element_specs_for_metrics(metric_specs=list(metric_specs))
 
-        for dimension_spec in dimension_specs:
-            if dimension_spec not in valid_linkable_specs:
-                invalid_linkable_specs.append(dimension_spec)
-
-        for identifier_spec in identifier_specs:
-            if identifier_spec not in valid_linkable_specs:
-                invalid_linkable_specs.append(identifier_spec)
-
-        for time_dimension_spec in time_dimension_specs:
-            if time_dimension_spec not in valid_linkable_specs:
-                invalid_linkable_specs.append(time_dimension_spec)
-
+        invalid_linkable_specs.extend(
+            dimension_spec
+            for dimension_spec in dimension_specs
+            if dimension_spec not in valid_linkable_specs
+        )
+        invalid_linkable_specs.extend(
+            identifier_spec
+            for identifier_spec in identifier_specs
+            if identifier_spec not in valid_linkable_specs
+        )
+        invalid_linkable_specs.extend(
+            time_dimension_spec
+            for time_dimension_spec in time_dimension_specs
+            if time_dimension_spec not in valid_linkable_specs
+        )
         return invalid_linkable_specs
 
     def _parse_order_by(

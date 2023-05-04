@@ -117,13 +117,19 @@ def filter_not_supported_features(  # noqa: D
 ) -> Sequence[RequiredDwEngineFeatures]:
     not_supported_features: List[RequiredDwEngineFeatures] = []
     for required_feature in required_features:
-        if required_feature is RequiredDwEngineFeatures.DATE_TRUNC:
-            if not sql_client.sql_engine_attributes.date_trunc_supported:
-                not_supported_features.append(required_feature)
-        elif required_feature is RequiredDwEngineFeatures.FULL_OUTER_JOIN:
-            if not sql_client.sql_engine_attributes.full_outer_joins_supported:
-                not_supported_features.append(required_feature)
-        else:
+        if (
+            required_feature is RequiredDwEngineFeatures.DATE_TRUNC
+            and not sql_client.sql_engine_attributes.date_trunc_supported
+            or required_feature is not RequiredDwEngineFeatures.DATE_TRUNC
+            and required_feature is RequiredDwEngineFeatures.FULL_OUTER_JOIN
+            and not sql_client.sql_engine_attributes.full_outer_joins_supported
+        ):
+            not_supported_features.append(required_feature)
+        elif (
+            required_feature is not RequiredDwEngineFeatures.DATE_TRUNC
+            and required_feature
+            is not RequiredDwEngineFeatures.FULL_OUTER_JOIN
+        ):
             assert_values_exhausted(required_feature)
     return not_supported_features
 
@@ -153,8 +159,9 @@ def test_case(
     case = _integration_test_case_repository.get_test_case(name)
     logger.info(f"Running integration test case: '{case.name}' from file '{case.file_path}'")
 
-    missing_required_features = filter_not_supported_features(sql_client, case.required_features)
-    if missing_required_features:
+    if missing_required_features := filter_not_supported_features(
+        sql_client, case.required_features
+    ):
         logger.info(f"Skipping test '{name}' since the DW does not support {missing_required_features}")
         return
 

@@ -62,15 +62,19 @@ class UniqueAndValidNameRule(ModelValidationRule):
         name_and_type_tuples: List[Tuple[ElementReference, str]] = []
 
         if data_source.measures:
-            for measure in data_source.measures:
-                name_and_type_tuples.append((measure.name, "measure"))
+            name_and_type_tuples.extend(
+                (measure.name, "measure") for measure in data_source.measures
+            )
         if data_source.identifiers:
-            for identifier in data_source.identifiers:
-                name_and_type_tuples.append((identifier.name, "identifier"))
+            name_and_type_tuples.extend(
+                (identifier.name, "identifier")
+                for identifier in data_source.identifiers
+            )
         if data_source.dimensions:
-            for dimension in data_source.dimensions:
-                name_and_type_tuples.append((dimension.name, "dimension"))
-
+            name_and_type_tuples.extend(
+                (dimension.name, "dimension")
+                for dimension in data_source.dimensions
+            )
         name_to_type: Dict[ElementReference, str] = {}
 
         for name, _type in name_and_type_tuples:
@@ -99,12 +103,15 @@ class UniqueAndValidNameRule(ModelValidationRule):
         """Checks names of objects that are not nested."""
         name_and_type_tuples = []
         if model.data_sources:
-            for data_source in model.data_sources:
-                name_and_type_tuples.append((data_source.name, "data source"))
+            name_and_type_tuples.extend(
+                (data_source.name, "data source")
+                for data_source in model.data_sources
+            )
         if model.materializations:
-            for materialization in model.materializations:
-                name_and_type_tuples.append((materialization.name, "materialization"))
-
+            name_and_type_tuples.extend(
+                (materialization.name, "materialization")
+                for materialization in model.materializations
+            )
         name_to_type: Dict[str, str] = {}
 
         issues = []
@@ -136,7 +143,7 @@ class UniqueAndValidNameRule(ModelValidationRule):
                 else:
                     metric_names.add(metric.name)
 
-        if any([x.level == ValidationIssueLevel.FATAL for x in issues]):
+        if any(x.level == ValidationIssueLevel.FATAL for x in issues):
             return issues
 
         for name, _ in name_and_type_tuples:

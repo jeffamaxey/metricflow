@@ -129,10 +129,10 @@ class SqlRewritingSubQueryReducerVisitor(SqlQueryPlanNodeVisitor[SqlQueryPlanNod
 
     @staticmethod
     def _select_columns_are_column_references(select_columns: Tuple[SqlSelectColumn, ...]) -> bool:
-        for select_column in select_columns:
-            if not select_column.expr.as_column_reference_expression:
-                return False
-        return True
+        return all(
+            select_column.expr.as_column_reference_expression
+            for select_column in select_columns
+        )
 
     @staticmethod
     def _select_column_for_alias(column_alias: str, select_columns: Sequence[SqlSelectColumn]) -> SqlSelectColumn:
@@ -189,7 +189,7 @@ class SqlRewritingSubQueryReducerVisitor(SqlQueryPlanNodeVisitor[SqlQueryPlanNod
             and not node.where
         )
 
-    def _current_node_can_be_reduced(self, node: SqlSelectStatementNode) -> bool:  # noqa: D
+    def _current_node_can_be_reduced(self, node: SqlSelectStatementNode) -> bool:    # noqa: D
         """Returns true if the given node can be reduced with the parent node.
 
         Reducing this node means eliminating the SELECT of this node and merging it with the parent SELECT. This
@@ -254,17 +254,12 @@ class SqlRewritingSubQueryReducerVisitor(SqlQueryPlanNodeVisitor[SqlQueryPlanNod
             ):
                 return False
 
-        # If the parent has a GROUP BY and this has a WHERE, avoid reducing as the WHERE could reference an
-        # aggregation expression.
-        if len(parent_select_node.group_bys) > 0 and node.where:
-            return False
+        if len(parent_select_node.group_bys) > 0:
+            if node.where:
+                return False
 
-        # If the parent has a GROUP BY, the case where it's easiest to merge this with the parent is if all select
-        # columns are column references.
-        if len(
-            parent_select_node.group_bys
-        ) > 0 and not SqlRewritingSubQueryReducerVisitor._select_columns_are_column_references(node.select_columns):
-            return False
+            if not SqlRewritingSubQueryReducerVisitor._select_columns_are_column_references(node.select_columns):
+                return False
 
         # If the parent select node contains string columns, and this has a GROUP BY, don't reduce as string columns
         # can have special meanings in a GROUP BY. For example,
@@ -291,19 +286,19 @@ class SqlRewritingSubQueryReducerVisitor(SqlQueryPlanNodeVisitor[SqlQueryPlanNod
         # However, the GROUP BY would be wrong as the "1" string expression would be interpreted as selecting the 1st
         # item in the SELECT to group by.
 
-        if len(node.group_bys) > 0 and SqlRewritingSubQueryReducerVisitor._select_columns_contain_string_expressions(
+        return len(
+            node.group_bys
+        ) <= 0 or not SqlRewritingSubQueryReducerVisitor._select_columns_contain_string_expressions(
             select_columns=parent_select_node.select_columns,
-        ):
-            return False
-
-        return True
+        )
 
     @staticmethod
     def _find_matching_table_alias(node: SqlSelectStatementNode, column_alias: str) -> Optional[str]:
         for select_column in node.select_columns:
             if select_column.column_alias == column_alias:
-                column_reference_expr = select_column.expr.as_column_reference_expression
-                if column_reference_expr:
+                if (
+                    column_reference_expr := select_column.expr.as_column_reference_expression
+                ):
                     return column_reference_expr.col_ref.table_alias
         return None
 
@@ -411,8 +406,7 @@ class SqlRewritingSubQueryReducerVisitor(SqlQueryPlanNodeVisitor[SqlQueryPlanNod
         for join_desc in node.join_descs:
             all_source_aliases.append(join_desc.right_source_alias)
             source_alias_set.add(join_desc.right_source_alias)
-            joined_node_select = join_desc.right_source.as_select_node
-            if joined_node_select:
+            if joined_node_select := join_desc.right_source.as_select_node:
                 all_source_aliases.append(joined_node_select.from_source_alias)
                 source_alias_set.add(joined_node_select.from_source_alias)
 
@@ -651,18 +645,21 @@ class SqlGroupByRewritingVisitor(SqlQueryPlanNodeVisitor[SqlQueryPlanNode]):
         expr: SqlExpressionNode, select_columns: Sequence[SqlSelectColumn]
     ) -> Optional[SqlSelectColumn]:
         """Given an expression, find the SELECT column that has the same expression."""
-        for select_column in select_columns:
-            if select_column.expr == expr:
-                return select_column
-        return None
+        return next(
+            (
+                select_column
+                for select_column in select_columns
+                if select_column.expr == expr
+            ),
+            None,
+        )
 
     def visit_select_statement_node(self, node: SqlSelectStatementNode) -> SqlQueryPlanNode:  # noqa: D
         new_group_bys = []
         for group_by in node.group_bys:
-            matching_select_column = SqlGroupByRewritingVisitor._find_matching_select(
+            if matching_select_column := SqlGroupByRewritingVisitor._find_matching_select(
                 group_by.expr, node.select_columns
-            )
-            if matching_select_column:
+            ):
                 new_group_bys.append(
                     SqlSelectColumn(
                         expr=SqlColumnAliasReferenceExpression(column_alias=matching_select_column.column_alias),

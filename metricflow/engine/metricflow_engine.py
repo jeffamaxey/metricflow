@@ -134,13 +134,12 @@ class MetricFlowExplainResult:
                 f"Multiple tasks in the execution plan not yet supported. Got tasks: {self.execution_plan.tasks}"
             )
 
-        sql_query = self.execution_plan.tasks[0].sql_query
-        if not sql_query:
+        if sql_query := self.execution_plan.tasks[0].sql_query:
+            return sql_query
+        else:
             raise NotImplementedError(
                 f"Execution plan tasks without a SQL query not yet supported. Got tasks: {self.execution_plan.tasks}"
             )
-
-        return sql_query
 
 
 class AbstractMetricFlowEngine(ABC):
@@ -331,10 +330,10 @@ class MetricFlowEngine(AbstractMetricFlowEngine):
 
     def _get_materialization_by_name(self, materialization_name: str) -> Optional[Materialization]:
         materializations = self.list_materializations()
-        for mat in materializations:
-            if mat.name == materialization_name:
-                return mat
-        return None
+        return next(
+            (mat for mat in materializations if mat.name == materialization_name),
+            None,
+        )
 
     def _generate_sql_table(self, table_name: str) -> SqlTable:
         return SqlTable.from_string(f"{self._schema}.{table_name}")
@@ -499,8 +498,7 @@ class MetricFlowEngine(AbstractMetricFlowEngine):
 
         # Process the dimension values
         result_dataframe.dropna(inplace=True)
-        dimension_values = [str(val) for val in result_dataframe[get_group_by_values]]
-        return dimension_values
+        return [str(val) for val in result_dataframe[get_group_by_values]]
 
     @log_call(module_name=__name__, telemetry_reporter=_telemetry_reporter)
     def materialize(  # noqa: D

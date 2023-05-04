@@ -24,7 +24,7 @@ class ExecutionResults:
     @property
     def contains_task_errors(self) -> bool:
         """Returns true if any of the tasks had an error."""
-        return any([len(result.errors) > 0 for node_id, result in self._results.items()])
+        return any(len(result.errors) > 0 for node_id, result in self._results.items())
 
     def get_result(self, task_id: NodeId) -> TaskExecutionResult:  # noqa: D
         assert task_id in self._results

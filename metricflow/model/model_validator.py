@@ -56,34 +56,34 @@ class ModelValidator:
         for validation_rule in ModelValidator.VALIDATION_RULES:
             issues.extend(validation_rule.validate_model(model_copy))
             # If there are any fatal errors, stop the validation process.
-            if any([x.level == ValidationIssueLevel.FATAL for x in issues]):
+            if any(x.level == ValidationIssueLevel.FATAL for x in issues):
                 return ModelBuildResult(model=model_copy, issues=tuple(issues))
 
         # If there are any errors, don't run any transforms and return the issues found.
-        if any([x.level == ValidationIssueLevel.ERROR for x in issues]):
+        if any(x.level == ValidationIssueLevel.ERROR for x in issues):
             return ModelBuildResult(model=model_copy, issues=tuple(issues))
 
         return ModelBuildResult(model=model_copy, issues=tuple(issues))
 
     @staticmethod
-    def checked_validations(model: UserConfiguredModel) -> UserConfiguredModel:  # chTODO: remember checked_build
+    def checked_validations(model: UserConfiguredModel) -> UserConfiguredModel:    # chTODO: remember checked_build
         """Similar to validate(), but throws an exception if validation fails."""
         model_copy = copy.deepcopy(model)
         build_result = ModelValidator.validate_model(model_copy)
         if build_result.issues is not None:
             if any(
-                [
-                    x.level == ValidationIssueLevel.WARNING or x.level == ValidationIssueLevel.FUTURE_ERROR
-                    for x in build_result.issues
+                x.level
+                in [
+                    ValidationIssueLevel.WARNING,
+                    ValidationIssueLevel.FUTURE_ERROR,
                 ]
+                for x in build_result.issues
             ):
                 issues_str = "\n".join([x.as_readable_str() for x in build_result.issues])
                 logger.warning(f"Found some validation warnings in the model:\n{issues_str}")
             if any(
-                [
-                    x.level == ValidationIssueLevel.ERROR or x.level == ValidationIssueLevel.FATAL
-                    for x in build_result.issues
-                ]
+                x.level in [ValidationIssueLevel.ERROR, ValidationIssueLevel.FATAL]
+                for x in build_result.issues
             ):
                 raise ModelValidationException(issues=build_result.issues)
         return model

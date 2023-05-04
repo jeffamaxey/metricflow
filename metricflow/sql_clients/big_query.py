@@ -80,8 +80,10 @@ class BigQuerySqlClient(SqlAlchemySqlClient):
             password: String representation of keyfile.json.
         """
         return sqlalchemy.create_engine(
-            f"{SqlDialect.BIGQUERY.value}://{project_id}" + "/?" + query_string,
-            credentials_info=json.loads(password) if password is not None else None,
+            f"{SqlDialect.BIGQUERY.value}://{project_id}/?{query_string}",
+            credentials_info=json.loads(password)
+            if password is not None
+            else None,
             pool_size=10,
             max_overflow=10,
             pool_pre_ping=True,
@@ -96,4 +98,4 @@ class BigQuerySqlClient(SqlAlchemySqlClient):
         with self.engine_connection(engine=self._engine) as conn:
             insp = sqlalchemy.inspection.inspect(conn)
             schema_dot_tables = insp.get_table_names(schema=schema_name)
-            return [x.replace(schema_name + ".", "") for x in schema_dot_tables]
+            return [x.replace(f"{schema_name}.", "") for x in schema_dot_tables]

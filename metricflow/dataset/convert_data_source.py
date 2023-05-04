@@ -407,12 +407,15 @@ class DataSourceToDataSetConverter:
         # the dimensions "country" and "user_id__country" both mean the same thing. To make matching easier, create both
         # instances in the instance set. We'll create a different instance for each "possible_identifier_links".
         possible_identifier_links: List[Tuple[LinklessIdentifierSpec, ...]] = [()]
-        for identifier in data_source.identifiers:
-            if identifier.type in (IdentifierType.PRIMARY, IdentifierType.UNIQUE):
-                possible_identifier_links.append(
-                    (LinklessIdentifierSpec.from_element_name(element_name=identifier.name.element_name),)
-                )
-
+        possible_identifier_links.extend(
+            (
+                LinklessIdentifierSpec.from_element_name(
+                    element_name=identifier.name.element_name
+                ),
+            )
+            for identifier in data_source.identifiers
+            if identifier.type in (IdentifierType.PRIMARY, IdentifierType.UNIQUE)
+        )
         # Handle dimensions
         conversion_results = [
             self._convert_dimensions(

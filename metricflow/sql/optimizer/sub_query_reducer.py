@@ -44,7 +44,7 @@ class SqlSubQueryReducerVisitor(SqlQueryPlanNodeVisitor[SqlQueryPlanNode]):
             limit=node.limit,
         )
 
-    def _reduce_is_possible(self, node: SqlSelectStatementNode) -> bool:  # noqa: D
+    def _reduce_is_possible(self, node: SqlSelectStatementNode) -> bool:    # noqa: D
         """Returns true if the given node can be reduced with the parent node.
 
         Reducing this node means eliminating the SELECT of this node and merging it with the parent SELECT. This
@@ -98,19 +98,18 @@ class SqlSubQueryReducerVisitor(SqlQueryPlanNodeVisitor[SqlQueryPlanNode]):
             if column_reference_expression.col_ref.column_name != select_column.column_alias:
                 return False
 
-        # Same thing with order by
-        for order_by in node.order_bys:
-            if not order_by.expr.as_column_reference_expression:
-                return False
-
-        return True
+        return all(
+            order_by.expr.as_column_reference_expression
+            for order_by in node.order_bys
+        )
 
     @staticmethod
     def _find_matching_table_alias(node: SqlSelectStatementNode, column_alias: str) -> Optional[str]:
         for select_column in node.select_columns:
             if select_column.column_alias == column_alias:
-                column_reference_expr = select_column.expr.as_column_reference_expression
-                if column_reference_expr:
+                if (
+                    column_reference_expr := select_column.expr.as_column_reference_expression
+                ):
                     return column_reference_expr.col_ref.table_alias
         return None
 
@@ -143,24 +142,23 @@ class SqlSubQueryReducerVisitor(SqlQueryPlanNodeVisitor[SqlQueryPlanNode]):
                 order_by_item_expr = order_by_item.expr.as_column_reference_expression
                 assert order_by_item_expr
 
-                # Re-write the order by as a column expression that references the table alias
-                table_alias_in_parent = SqlSubQueryReducerVisitor._find_matching_table_alias(
+                if table_alias_in_parent := SqlSubQueryReducerVisitor._find_matching_table_alias(
                     parent_select_node, order_by_item_expr.col_ref.column_name
-                )
-                if not table_alias_in_parent:
-                    return node_with_reduced_parents
-                new_order_by.append(
-                    SqlOrderByDescription(
-                        expr=SqlColumnReferenceExpression(
-                            SqlColumnReference(
-                                table_alias=table_alias_in_parent,
-                                column_name=order_by_item_expr.col_ref.column_name,
-                            )
-                        ),
-                        desc=order_by_item.desc,
+                ):
+                    new_order_by.append(
+                        SqlOrderByDescription(
+                            expr=SqlColumnReferenceExpression(
+                                SqlColumnReference(
+                                    table_alias=table_alias_in_parent,
+                                    column_name=order_by_item_expr.col_ref.column_name,
+                                )
+                            ),
+                            desc=order_by_item.desc,
+                        )
                     )
-                )
 
+                else:
+                    return node_with_reduced_parents
         # The limit should be the min of this SELECT limit and the parent SELECT limit.
         new_limit: Optional[int] = node_with_reduced_parents.limit
         if new_limit is None:

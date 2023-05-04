@@ -157,9 +157,11 @@ class TimeGranularity(ExtendedEnum):
             )
 
     def __lt__(self, other: Any) -> bool:  # type: ignore [misc] # noqa: D
-        if not isinstance(other, TimeGranularity):
-            return NotImplemented
-        return self.to_int() < other.to_int()
+        return (
+            self.to_int() < other.to_int()
+            if isinstance(other, TimeGranularity)
+            else NotImplemented
+        )
 
     def __hash__(self) -> int:  # noqa: D
         return self.to_int()

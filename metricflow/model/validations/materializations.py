@@ -73,7 +73,7 @@ class ValidMaterializationRule(ModelValidationRule):
             if structured_spec.element_name == primary_time_dimensions_reference.element_name:
                 mat_primary_time_dimension_names.append(mat_dimension_or_identifier_name)
 
-        if len(mat_primary_time_dimension_names) == 0:
+        if not mat_primary_time_dimension_names:
             issues.append(
                 ValidationError(
                     model_object_reference=ValidationIssue.make_object_reference(

@@ -50,4 +50,4 @@ class MultiDiGraph(Generic[KT, VT]):
         """All edges originating from `from_key`"""
         if from_key not in self._adjacency_dict:
             return []
-        return list(t for lst in self._adjacency_dict[from_key].values() for t in lst)
+        return [t for lst in self._adjacency_dict[from_key].values() for t in lst]

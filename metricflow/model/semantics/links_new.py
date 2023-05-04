@@ -22,13 +22,11 @@ class JoinLink:  # noqa: D
         return (self.via_from.type, self.via_to.type) in FANOUT_JOIN_TYPES  # type: ignore
 
 
-FANOUT_JOIN_TYPES = set(
-    [
-        (IdentifierType.PRIMARY, IdentifierType.FOREIGN),
-        (IdentifierType.UNIQUE, IdentifierType.FOREIGN),
-        (IdentifierType.FOREIGN, IdentifierType.FOREIGN),
-    ]
-)
+FANOUT_JOIN_TYPES = {
+    (IdentifierType.PRIMARY, IdentifierType.FOREIGN),
+    (IdentifierType.UNIQUE, IdentifierType.FOREIGN),
+    (IdentifierType.FOREIGN, IdentifierType.FOREIGN),
+}
 
 JOIN_TYPE_MAPPING = {
     (IdentifierType.PRIMARY, IdentifierType.PRIMARY): JoinType.LEFT,

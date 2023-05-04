@@ -18,11 +18,10 @@ class UnableToSatisfyQueryError(CustomerFacingSemanticException):  # noqa:D
         self._context = context
 
     def __str__(self) -> str:  # noqa:D
-        error_lines = ["Unable To Satisfy Query Error: " + self.error_name]
+        error_lines = [f"Unable To Satisfy Query Error: {self.error_name}"]
         if self._context:
             for key, value in self._context.items():
-                error_lines.append(f"\n{key}:")
-                error_lines.append(f"{textwrap.indent(value, prefix='    ')}")
+                error_lines.extend((f"\n{key}:", f"{textwrap.indent(value, prefix='    ')}"))
         return "\n".join(error_lines)
 
 

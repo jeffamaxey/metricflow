@@ -123,20 +123,20 @@ class DataflowToExecutionPlanConverter(Generic[SqlDataSetT], SinkNodeVisitor[Sql
 
         leaf_task: ExecutionPlanTask
 
-        if not output_table:
-            leaf_task = SelectSqlQueryToDataFrameTask(
-                sql_client=self._sql_client,
-                sql_query=render_result.sql,
-                execution_parameters=render_result.execution_parameters,
-            )
-        else:
-            leaf_task = SelectSqlQueryToTableTask(
+        leaf_task = (
+            SelectSqlQueryToTableTask(
                 sql_client=self._sql_client,
                 sql_query=render_result.sql,
                 execution_parameters=render_result.execution_parameters,
                 output_table=output_table,
             )
-
+            if output_table
+            else SelectSqlQueryToDataFrameTask(
+                sql_client=self._sql_client,
+                sql_query=render_result.sql,
+                execution_parameters=render_result.execution_parameters,
+            )
+        )
         return ExecutionPlan(
             plan_id=IdGeneratorRegistry.for_class(self.__class__).create_id(EXEC_PLAN_PREFIX), leaf_tasks=[leaf_task]
         )

@@ -126,10 +126,10 @@ class MetricSemantics:  # noqa: D
 
     def contains_cumulative_metric(self, metric_specs: Sequence[MetricSpec]) -> bool:
         """Returns true if any of the specs correspond to a cumulative metric."""
-        for metric_spec in metric_specs:
-            if self.get_metric(metric_spec).type == MetricType.CUMULATIVE:
-                return True
-        return False
+        return any(
+            self.get_metric(metric_spec).type == MetricType.CUMULATIVE
+            for metric_spec in metric_specs
+        )
 
 
 class DataSourceSemantics:
@@ -260,15 +260,17 @@ class DataSourceSemantics:
 
     def get_data_source_element(self, ref: DataSourceElementReference) -> Optional[Element]:  # Noqa: d
         data_source = self[ref.data_source_name]
-        for elem in data_source.elements:
-            if elem.name.element_name == ref.element_name:
-                return elem
-
-        return None
+        return next(
+            (
+                elem
+                for elem in data_source.elements
+                if elem.name.element_name == ref.element_name
+            ),
+            None,
+        )
 
     def __getitem__(self, item: str) -> DataSource:  # noqa: D
-        res = self.get(item)
-        if res:
+        if res := self.get(item):
             return res
 
         raise ValueError(f"Cannot find data source with name ({item})")
@@ -301,21 +303,15 @@ class DataSourceSemantics:
                 f"Cannot add derived data source (with name: {data_source.name}) to New DataSourceSemantics... for now"
             )
 
-        for measure in data_source.measures:
-            if measure.name in self._measure_aggs and self._measure_aggs[measure.name] != measure.agg:
-                errors.append(
-                    f"conflicting aggregation (agg) for measure `{measure.name}` registered as `{self._measure_aggs[measure.name]}`; "
-                    f"Got `{measure.agg}"
-                )
-
+        errors.extend(
+            f"conflicting aggregation (agg) for measure `{measure.name}` registered as `{self._measure_aggs[measure.name]}`; Got `{measure.agg}"
+            for measure in data_source.measures
+            if measure.name in self._measure_aggs
+            and self._measure_aggs[measure.name] != measure.agg
+        )
         if errors:
             error_prefix = "\n  - "
-            error_msg = (
-                f"Unable to add data source `{data_source.name}` "
-                f"{'while ' + logging_context + ' ' if logging_context else ''}"
-                f"{'... skipping' if not fail_on_error else ''}.\n"
-                f"Errors: {error_prefix + error_prefix.join(errors)}"
-            )
+            error_msg = f"Unable to add data source `{data_source.name}` {f'while {logging_context} ' if logging_context else ''}{'' if fail_on_error else '... skipping'}.\nErrors: {error_prefix + error_prefix.join(errors)}"
             if fail_on_error:
                 raise InvalidDataSourceError(error_msg)
             logger.warning(error_msg)
@@ -347,11 +343,11 @@ class DataSourceSemantics:
                     continue
 
                 # handle whether or not this join is partitioned
-                partitions: List[DimensionReference] = list()
+                partitions: List[DimensionReference] = []
                 other_partition = other.partition
-                if dsource_partition and other_partition and dsource_partition.name != other_partition.name:
-                    continue
                 if dsource_partition and other_partition:
+                    if dsource_partition.name != other_partition.name:
+                        continue
                     partitions.append(dsource_partition.name)
 
                 for other_ident in other.identifiers:
@@ -369,13 +365,13 @@ class DataSourceSemantics:
                                 join_type=join_type,
                                 via_from=ident,
                                 via_to=other_ident,
-                                partitions=tuple([str(p) for p in partitions]),
+                                partitions=tuple(str(p) for p in partitions),
                             ),
                         )
 
-                    # add edge other -> data_source "data_source is joinable to other"
-                    reversed_join_type = JOIN_TYPE_MAPPING.get((other_ident.type, ident.type), None)
-                    if reversed_join_type:
+                    if reversed_join_type := JOIN_TYPE_MAPPING.get(
+                        (other_ident.type, ident.type), None
+                    ):
                         self._data_source_links.add_edge(
                             from_key=other.name,
                             to_key=data_source.name,
@@ -383,7 +379,7 @@ class DataSourceSemantics:
                                 join_type=reversed_join_type,
                                 via_from=other_ident,
                                 via_to=ident,
-                                partitions=tuple([str(p) for p in partitions]),
+                                partitions=tuple(str(p) for p in partitions),
                             ),
                         )
 

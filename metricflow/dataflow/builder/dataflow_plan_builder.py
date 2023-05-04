@@ -236,27 +236,25 @@ class DataflowPlanBuilder(Generic[SqlDataSetT]):
         limit: Optional[int] = None,
     ) -> SinkOutput[SqlDataSetT]:
         """Adds order by / limit / write nodes."""
-        order_by_limit: Optional[OrderByLimitNode[SqlDataSetT]] = None
-
         if order_by_specs or limit:
             order_by_limit = OrderByLimitNode[SqlDataSetT](
                 order_by_specs=list(order_by_specs),
                 limit=limit,
                 parent_node=computed_metrics_output,
             )
-
-        write_result_node: SinkOutput[SqlDataSetT]
-        if not output_sql_table:
-            write_result_node = WriteToResultDataframeNode[SqlDataSetT](
-                parent_node=order_by_limit or computed_metrics_output,
-            )
         else:
-            write_result_node = WriteToResultTableNode[SqlDataSetT](
+            order_by_limit = None
+        write_result_node: SinkOutput[SqlDataSetT]
+        return (
+            WriteToResultTableNode[SqlDataSetT](
                 parent_node=order_by_limit or computed_metrics_output,
                 output_sql_table=output_sql_table,
             )
-
-        return write_result_node
+            if output_sql_table
+            else WriteToResultDataframeNode[SqlDataSetT](
+                parent_node=order_by_limit or computed_metrics_output,
+            )
+        )
 
     @staticmethod
     def _contains_multihop_linkables(linkable_specs: Sequence[LinkableInstanceSpec]) -> bool:
@@ -372,8 +370,11 @@ class DataflowPlanBuilder(Generic[SqlDataSetT]):
         for node in self._sort_by_suitability(potential_measure_nodes):
             data_set = self._node_data_set_resolver.get_output_data_set(node)
 
-            missing_specs = [spec for spec in measure_specs if spec not in data_set.instance_set.spec_set.measure_specs]
-            if missing_specs:
+            if missing_specs := [
+                spec
+                for spec in measure_specs
+                if spec not in data_set.instance_set.spec_set.measure_specs
+            ]:
                 logger.debug(
                     f"Skipping evaluation for node since it does not have all of the measure specs {missing_specs}:"
                     f"\n\n{dataflow_dag_as_text(node)}"
@@ -413,7 +414,7 @@ class DataflowPlanBuilder(Generic[SqlDataSetT]):
 
         logger.info(f"Found {len(node_to_evaluation)} candidate measure nodes.")
 
-        if len(node_to_evaluation) > 0:
+        if node_to_evaluation:
 
             cost_function = DefaultCostFunction[SqlDataSetT]()
 
@@ -633,7 +634,10 @@ class DataflowPlanBuilder(Generic[SqlDataSetT]):
             # Figure out what elements to filter from the joined node.
 
             # Sanity check - all linkable specs should have a link, or else why would we be joining them.
-            assert all([len(x.identifier_links) > 0 for x in join_recipe.satisfiable_linkable_specs])
+            assert all(
+                len(x.identifier_links) > 0
+                for x in join_recipe.satisfiable_linkable_specs
+            )
 
             # If we're joining something in, then we need the associated identifier and partitions.
             include_specs: List[LinkableInstanceSpec] = [
@@ -663,7 +667,7 @@ class DataflowPlanBuilder(Generic[SqlDataSetT]):
             )
 
         unaggregated_measure_node: BaseOutput[SqlDataSetT]
-        if len(join_targets) > 0:
+        if join_targets:
             filtered_measures_with_joined_elements = JoinToBaseOutputNode[SqlDataSetT](
                 parent_node=filtered_measure_or_time_range_node,
                 join_targets=join_targets,

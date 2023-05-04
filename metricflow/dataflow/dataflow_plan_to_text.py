@@ -29,11 +29,10 @@ def dataflow_plan_as_text(dataflow_plan: DataflowPlan) -> str:
     The text representation is similar to XML.
     """
 
-    # Convert each of the components that are associated with the sink nodes to a text representation.
-    component_from_sink_nodes_as_text = []
-    for sink_node in dataflow_plan.sink_nodes:
-        component_from_sink_nodes_as_text.append(dataflow_dag_as_text(sink_node))
-
+    component_from_sink_nodes_as_text = [
+        dataflow_dag_as_text(sink_node)
+        for sink_node in dataflow_plan.sink_nodes
+    ]
     # Under <DataflowPlan>, render all components.
     return jinja2.Template(
         textwrap.dedent(

@@ -190,7 +190,7 @@ def parse_config_yaml(
                     )
                 )
 
-        if len(errors) > 0:
+        if errors:
             errors_str = "\n".join([str(x) for x in errors])
             raise ParsingException(
                 message=f"Found {len(errors)} error(s) parsing configs files:\n"
@@ -246,17 +246,16 @@ def parse(  # type: ignore[misc]
                 continue
             if issubclass(field_value.type_, ParseableObject):
                 if isinstance(yaml_dict[field_name], list):
-                    objects = []
-                    for obj in yaml_dict[field_name]:
-                        objects.append(parse(field_value.type_, ctx, obj, filename, contents))  # type: ignore
+                    objects = [
+                        parse(field_value.type_, ctx, obj, filename, contents)
+                        for obj in yaml_dict[field_name]
+                    ]
                     yaml_dict[field_name] = objects
                 else:
                     yaml_dict[field_name] = parse(field_value.type_, ctx, yaml_dict[field_name], filename, contents)  # type: ignore
             elif issubclass(field_value.type_, ParseableField):
                 if isinstance(yaml_dict[field_name], list):
-                    objects = []
-                    for obj in yaml_dict[field_name]:
-                        objects.append(field_value.type_.parse(obj))
+                    objects = [field_value.type_.parse(obj) for obj in yaml_dict[field_name]]
                     yaml_dict[field_name] = objects
                 else:
                     yaml_dict[field_name] = field_value.type_.parse(yaml_dict[field_name])

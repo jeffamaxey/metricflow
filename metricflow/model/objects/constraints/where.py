@@ -88,12 +88,12 @@ def strip_where(s: str) -> str:
 
 
 def constraint_dimension_names_from_dict(where: Dict[str, Any]) -> List[str]:  # type: ignore[misc] # noqa: D
-    if not len(where.keys()) == 1:
+    if len(where.keys()) != 1:
         raise ConstraintParseException(f"expected parsed constraint to contain exactly one key; got {where}")
 
     dims = []
     for key, clause in where.items():
-        if key == LITERAL_STR or key == INTERVAL_LITERAL:
+        if key in [LITERAL_STR, INTERVAL_LITERAL]:
             continue
         dims += _get_dimensions_from_clause(clause)
 

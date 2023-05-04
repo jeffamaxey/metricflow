@@ -151,11 +151,7 @@ def parse_comma_separated_inputs(value: Optional[str]) -> Optional[List[str]]:  
     # If comma exist, explode this into a list and return
     if value is None:
         return None
-    if "," in value:
-        return [i.strip() for i in value.split(",")]
-
-    # Return a list of the single value
-    return [value]
+    return [i.strip() for i in value.split(",")] if "," in value else [value]
 
 
 def validate_limit(limit: Optional[str]) -> Optional[int]:

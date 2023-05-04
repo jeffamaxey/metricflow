@@ -40,16 +40,13 @@ class StructuredLinkableSpecName:
             if name_parts[-1] == granularity.value:
                 associated_granularity = granularity
 
-        # Has a time granularity
-        if associated_granularity:
-            #  e.g. "ds__month"
-            if len(name_parts) == 2:
-                return StructuredLinkableSpecName((), name_parts[0], associated_granularity)
-            # e.g. "messages__ds__month"
-            return StructuredLinkableSpecName(tuple(name_parts[:-2]), name_parts[-2], associated_granularity)
-        # e.g. "messages__ds"
-        else:
+        if not associated_granularity:
             return StructuredLinkableSpecName(tuple(name_parts[:-1]), name_parts[-1])
+        #  e.g. "ds__month"
+        if len(name_parts) == 2:
+            return StructuredLinkableSpecName((), name_parts[0], associated_granularity)
+        # e.g. "messages__ds__month"
+        return StructuredLinkableSpecName(tuple(name_parts[:-2]), name_parts[-2], associated_granularity)
 
     @property
     def qualified_name(self) -> str:

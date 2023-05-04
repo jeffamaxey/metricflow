@@ -111,7 +111,9 @@ class TelemetryReporter:
                     client_id=self._client_id,
                     function_end_event=FunctionEndEvent.create(
                         event_time=datetime.datetime.now(),
-                        level_name=TelemetryLevel.USAGE.name if not exception_trace else TelemetryLevel.EXCEPTION.name,
+                        level_name=TelemetryLevel.EXCEPTION.name
+                        if exception_trace
+                        else TelemetryLevel.USAGE.name,
                         invocation_id=invocation_id,
                         module_name=module_name,
                         function_name=function_name,

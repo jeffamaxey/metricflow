@@ -127,25 +127,24 @@ def make_equijoin_description(
     """
     assert len(column_equality_descriptions) > 0
 
-    and_conditions = []
-    for column_equality_description in column_equality_descriptions:
-        and_conditions.append(
-            SqlComparisonExpression(
-                left_expr=SqlColumnReferenceExpression(
-                    SqlColumnReference(
-                        table_alias=left_source_alias,
-                        column_name=column_equality_description.left_column_alias,
-                    )
-                ),
-                comparison=SqlComparison.EQUALS,
-                right_expr=SqlColumnReferenceExpression(
-                    SqlColumnReference(
-                        table_alias=right_source_alias,
-                        column_name=column_equality_description.right_column_alias,
-                    )
-                ),
-            )
+    and_conditions = [
+        SqlComparisonExpression(
+            left_expr=SqlColumnReferenceExpression(
+                SqlColumnReference(
+                    table_alias=left_source_alias,
+                    column_name=column_equality_description.left_column_alias,
+                )
+            ),
+            comparison=SqlComparison.EQUALS,
+            right_expr=SqlColumnReferenceExpression(
+                SqlColumnReference(
+                    table_alias=right_source_alias,
+                    column_name=column_equality_description.right_column_alias,
+                )
+            ),
         )
+        for column_equality_description in column_equality_descriptions
+    ]
     on_condition: SqlExpressionNode
     if len(and_conditions) == 1:
         on_condition = and_conditions[0]
@@ -385,7 +384,6 @@ def _make_time_spine_data_set(
     )
     description = "Date Spine"
 
-    # If the requested granularity is the same as the granularity of the spine, do a direct select.
     if primary_time_dimension_instance.spec.time_granularity == time_spine_source.time_column_granularity:
         return SqlDataSet(
             instance_set=time_spine_instance_set,
@@ -417,42 +415,40 @@ def _make_time_spine_data_set(
                 order_bys=(),
             ),
         )
-    # If the granularity is different, apply a DATE_TRUNC() and aggregate.
-    else:
-        select_columns = (
-            SqlSelectColumn(
-                expr=SqlDateTruncExpression(
-                    time_granularity=primary_time_dimension_instance.spec.time_granularity,
-                    arg=SqlColumnReferenceExpression(
-                        SqlColumnReference(
-                            table_alias=time_spine_table_alias,
-                            column_name=time_spine_source.time_column_name,
-                        ),
+    select_columns = (
+        SqlSelectColumn(
+            expr=SqlDateTruncExpression(
+                time_granularity=primary_time_dimension_instance.spec.time_granularity,
+                arg=SqlColumnReferenceExpression(
+                    SqlColumnReference(
+                        table_alias=time_spine_table_alias,
+                        column_name=time_spine_source.time_column_name,
                     ),
                 ),
-                column_alias=primary_time_dimension_column_name,
             ),
-        )
-        return SqlDataSet(
-            instance_set=time_spine_instance_set,
-            sql_select_node=SqlSelectStatementNode(
-                description=description,
-                # This creates select expressions for all columns referenced in the instance set.
-                select_columns=select_columns,
-                from_source=SqlTableFromClauseNode(sql_table=time_spine_source.spine_table),
-                from_source_alias=time_spine_table_alias,
-                joins_descs=(),
-                group_bys=select_columns,
-                where=_make_time_range_comparison_expr(
-                    table_alias=time_spine_table_alias,
-                    column_alias=time_spine_source.time_column_name,
-                    time_range_constraint=time_range_constraint,
-                )
-                if time_range_constraint
-                else None,
-                order_bys=(),
-            ),
-        )
+            column_alias=primary_time_dimension_column_name,
+        ),
+    )
+    return SqlDataSet(
+        instance_set=time_spine_instance_set,
+        sql_select_node=SqlSelectStatementNode(
+            description=description,
+            # This creates select expressions for all columns referenced in the instance set.
+            select_columns=select_columns,
+            from_source=SqlTableFromClauseNode(sql_table=time_spine_source.spine_table),
+            from_source_alias=time_spine_table_alias,
+            joins_descs=(),
+            group_bys=select_columns,
+            where=_make_time_range_comparison_expr(
+                table_alias=time_spine_table_alias,
+                column_alias=time_spine_source.time_column_name,
+                time_range_constraint=time_range_constraint,
+            )
+            if time_range_constraint
+            else None,
+            order_bys=(),
+        ),
+    )
 
 
 class DataflowToSqlQueryPlanConverter(Generic[SqlDataSetT], DataflowPlanNodeVisitor[SqlDataSetT, SqlDataSet]):
@@ -577,7 +573,7 @@ class DataflowToSqlQueryPlanConverter(Generic[SqlDataSetT], DataflowPlanNodeVisi
                 time_spine_data_set_time_dimension_col,
                 node.grain_to_date,
             )
-        elif node.window is None:  # `window is None` for clarity (could be else since we have window and !window)
+        else:
             constrain_primary_time_column_condition_both = _make_cumulative_metric_join_condition(
                 input_data_set_alias,
                 input_data_set_identifier_col,
@@ -600,14 +596,10 @@ class DataflowToSqlQueryPlanConverter(Generic[SqlDataSetT], DataflowPlanNodeVisi
             dimension_instances=input_data_set.instance_set.dimension_instances,
             identifier_instances=input_data_set.instance_set.identifier_instances,
             metric_instances=input_data_set.instance_set.metric_instances,
-            # we omit the primary time dimension from the right side of the self-join because we need to use
-            # the primary time dimension from the right side
             time_dimension_instances=tuple(
-                [
-                    time_dimension_instance
-                    for time_dimension_instance in input_data_set.instance_set.time_dimension_instances
-                    if time_dimension_instance.spec != primary_time_dimension_spec
-                ]
+                time_dimension_instance
+                for time_dimension_instance in input_data_set.instance_set.time_dimension_instances
+                if time_dimension_instance.spec != primary_time_dimension_spec
             ),
         )
         table_alias_to_instance_set[input_data_set_alias] = modified_input_instance_set
@@ -675,41 +667,36 @@ class DataflowToSqlQueryPlanConverter(Generic[SqlDataSetT], DataflowPlanNodeVisi
                 right_data_set_identifier_cols
             ), f"Cannot construct join - the number of columns on the left ({from_data_set_identifier_cols}) side of the join does not match the right ({right_data_set_identifier_cols})"
 
-            # We have the columns that we need to "join on" in the query, so add it to the list of join descriptions to
-            # use later.
-            column_equality_descriptions = []
-            for idx in range(len(from_data_set_identifier_cols)):
-                column_equality_descriptions.append(
-                    ColumnEqualityDescription(
-                        left_column_alias=from_data_set_identifier_cols[idx],
-                        right_column_alias=right_data_set_identifier_cols[idx],
-                    )
+            column_equality_descriptions = [
+                ColumnEqualityDescription(
+                    left_column_alias=from_data_set_identifier_cols[idx],
+                    right_column_alias=right_data_set_identifier_cols[idx],
                 )
+                for idx in range(len(from_data_set_identifier_cols))
+            ]
             # Add the partition columns as well.
-            for dimension_join_description in join_description.join_on_partition_dimensions:
-                column_equality_descriptions.append(
-                    ColumnEqualityDescription(
-                        left_column_alias=from_data_set.column_association_for_dimension(
-                            dimension_join_description.start_node_dimension_spec
-                        ).column_name,
-                        right_column_alias=right_data_set.column_association_for_dimension(
-                            dimension_join_description.node_to_join_dimension_spec
-                        ).column_name,
-                    )
+            column_equality_descriptions.extend(
+                ColumnEqualityDescription(
+                    left_column_alias=from_data_set.column_association_for_dimension(
+                        dimension_join_description.start_node_dimension_spec
+                    ).column_name,
+                    right_column_alias=right_data_set.column_association_for_dimension(
+                        dimension_join_description.node_to_join_dimension_spec
+                    ).column_name,
                 )
-
-            for time_dimension_join_description in join_description.join_on_partition_time_dimensions:
-                column_equality_descriptions.append(
-                    ColumnEqualityDescription(
-                        left_column_alias=from_data_set.column_association_for_time_dimension(
-                            time_dimension_join_description.start_node_time_dimension_spec
-                        ).column_name,
-                        right_column_alias=right_data_set.column_association_for_time_dimension(
-                            time_dimension_join_description.node_to_join_time_dimension_spec
-                        ).column_name,
-                    )
+                for dimension_join_description in join_description.join_on_partition_dimensions
+            )
+            column_equality_descriptions.extend(
+                ColumnEqualityDescription(
+                    left_column_alias=from_data_set.column_association_for_time_dimension(
+                        time_dimension_join_description.start_node_time_dimension_spec
+                    ).column_name,
+                    right_column_alias=right_data_set.column_association_for_time_dimension(
+                        time_dimension_join_description.node_to_join_time_dimension_spec
+                    ).column_name,
                 )
-
+                for time_dimension_join_description in join_description.join_on_partition_time_dimensions
+            )
             sql_join_descs.append(
                 make_equijoin_description(
                     right_data_set=right_data_set,
@@ -1025,18 +1012,18 @@ class DataflowToSqlQueryPlanConverter(Generic[SqlDataSetT], DataflowPlanNodeVisi
         order_by_descriptions = []
         for order_by_spec in node.order_by_specs:
             column_associations = order_by_spec.item.column_associations(self._column_association_resolver)
-            for column_association in column_associations:
-                order_by_descriptions.append(
-                    SqlOrderByDescription(
-                        expr=SqlColumnReferenceExpression(
-                            col_ref=SqlColumnReference(
-                                table_alias=from_data_set_alias, column_name=column_association.column_name
-                            )
-                        ),
-                        desc=order_by_spec.descending,
-                    )
+            order_by_descriptions.extend(
+                SqlOrderByDescription(
+                    expr=SqlColumnReferenceExpression(
+                        col_ref=SqlColumnReference(
+                            table_alias=from_data_set_alias,
+                            column_name=column_association.column_name,
+                        )
+                    ),
+                    desc=order_by_spec.descending,
                 )
-
+                for column_association in column_associations
+            )
         return SqlDataSet(
             instance_set=output_instance_set,
             sql_select_node=SqlSelectStatementNode(
@@ -1158,31 +1145,11 @@ class DataflowToSqlQueryPlanConverter(Generic[SqlDataSetT], DataflowPlanNodeVisi
         ), "Shouldn't have a CombineMetricsNode in the dataflow plan if there's only 1 parent."
         linkable_specs = parent_data_sets[0].instance_set.spec_set.linkable_specs
         assert all(
-            [set(x.instance_set.spec_set.linkable_specs) == set(linkable_specs) for x in parent_data_sets]
+            set(x.instance_set.spec_set.linkable_specs) == set(linkable_specs)
+            for x in parent_data_sets
         ), "All parent nodes should have the same set of linkable instances since all values are coalesced."
         linkable_spec_set = parent_data_sets[0].instance_set.spec_set.transform(SelectOnlyLinkableSpecs())
 
-        # Create a FULL OUTER join where the join key is all previous dimension values from all sources coalesced.
-        #
-        # e.g.
-        #
-        # FROM (
-        #   ...
-        # ) subq_9
-        # FULL OUTER JOIN (
-        #   ...
-        # ) subq_10
-        # ON
-        #   subq_9.is_instant = subq_10.is_instant
-        #   AND subq_9.ds = subq_10.ds
-        # FULL OUTER JOIN (
-        #   ...
-        # ) subq_11
-        # ON
-        #   COALESCE(subq_9.is_instant, subq_10.is_instant) = subq_11.is_instant
-        #   AND COALESCE(subq_9.ds, subq_10.ds) = subq_11.ds
-
-        joins_descriptions = []
         parent_source_table_aliases = []
         table_alias_to_metric_specs: OrderedDict[str, Sequence[MetricSpec]] = OrderedDict()
         for parent_data_set in parent_data_sets:
@@ -1195,20 +1162,19 @@ class DataflowToSqlQueryPlanConverter(Generic[SqlDataSetT], DataflowPlanNodeVisi
         # the rest.
         from_alias = parent_source_table_aliases[0]
         from_source = parent_data_sets[0].sql_select_node
-        for i in range(1, len(parent_source_table_aliases)):
-            joins_descriptions.append(
-                SqlJoinDescription(
-                    right_source=parent_data_sets[i].sql_select_node,
-                    right_source_alias=parent_source_table_aliases[i],
-                    on_condition=CreateOnConditionForCombiningMetrics(
-                        column_association_resolver=self._column_association_resolver,
-                        table_aliases_in_coalesce=parent_source_table_aliases[:i],
-                        table_alias_on_right_equality=parent_source_table_aliases[i],
-                    ).transform(linkable_spec_set),
-                    join_type=SqlJoinType.FULL_OUTER,
-                )
+        joins_descriptions = [
+            SqlJoinDescription(
+                right_source=parent_data_sets[i].sql_select_node,
+                right_source_alias=parent_source_table_aliases[i],
+                on_condition=CreateOnConditionForCombiningMetrics(
+                    column_association_resolver=self._column_association_resolver,
+                    table_aliases_in_coalesce=parent_source_table_aliases[:i],
+                    table_alias_on_right_equality=parent_source_table_aliases[i],
+                ).transform(linkable_spec_set),
+                join_type=SqlJoinType.FULL_OUTER,
             )
-
+            for i in range(1, len(parent_source_table_aliases))
+        ]
         # We can merge all parent instances since the common linkable instances will be de-duped.
         output_instance_set = InstanceSet.merge([x.instance_set for x in parent_data_sets])
         output_instance_set = output_instance_set.transform(ChangeAssociatedColumns(self._column_association_resolver))
@@ -1252,15 +1218,15 @@ class DataflowToSqlQueryPlanConverter(Generic[SqlDataSetT], DataflowPlanNodeVisi
         #
         # not DATE_TRUNC('month', ds) >= '2020-01-01' AND DATE_TRUNC('month', ds <= '2020-02-01')
         def sort_function_for_time_granularity(instance: TimeDimensionInstance) -> int:
-            if not instance.spec.time_granularity:
-                # TODO: TimeDimensionSpec.time_granularity will not be optional later, so this will be fixed.
-                return 100
-            else:
-                return instance.spec.time_granularity.to_int()
+            return (
+                instance.spec.time_granularity.to_int()
+                if instance.spec.time_granularity
+                else 100
+            )
 
         time_dimension_instances_for_primary_time.sort(key=sort_function_for_time_granularity)
         assert (
-            len(time_dimension_instances_for_primary_time) > 0
+            time_dimension_instances_for_primary_time
         ), "No primary time dimensions found in the input data set for this node"
 
         time_dimension_instance_for_primary_time = time_dimension_instances_for_primary_time[0]

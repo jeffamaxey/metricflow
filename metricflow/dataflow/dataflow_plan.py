@@ -230,8 +230,9 @@ class JoinToBaseOutputNode(Generic[SourceDataSetT], BaseOutput[SourceDataSetT]):
 
         # Doing a list comprehension throws a type error, so doing it this way.
         parent_nodes: List[DataflowPlanNode[SourceDataSetT]] = [self._left_node]
-        for join_target in self._join_targets:
-            parent_nodes.append(join_target.join_node)
+        parent_nodes.extend(
+            join_target.join_node for join_target in self._join_targets
+        )
         super().__init__(node_id=node_id or self.create_unique_id(), parent_nodes=parent_nodes)
 
     @classmethod
@@ -759,7 +760,7 @@ class DataflowPlan(Generic[SourceDataSetT], MetricFlowDag[SinkOutput[SourceDataS
     """Describes the flow of metric data as it goes from source nodes to sink nodes in the graph."""
 
     def __init__(self, plan_id: str, sink_output_nodes: List[SinkOutput[SourceDataSetT]]) -> None:  # noqa: D
-        if len(sink_output_nodes) == 0:
+        if not sink_output_nodes:
             raise RuntimeError("Can't create a dataflow plan without sink node(s).")
         self._sink_output_nodes = sink_output_nodes
         super().__init__(dag_id=plan_id, sink_nodes=sink_output_nodes)

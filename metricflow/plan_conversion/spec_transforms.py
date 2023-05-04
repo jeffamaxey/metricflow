@@ -39,21 +39,19 @@ def _make_coalesced_expr(table_aliases: Sequence[str], column_alias: str) -> Sql
                 column_name=column_alias,
             )
         )
-    else:
-        columns_to_coalesce: List[SqlExpressionNode] = []
-        for table_alias in table_aliases:
-            columns_to_coalesce.append(
-                SqlColumnReferenceExpression(
-                    col_ref=SqlColumnReference(
-                        table_alias=table_alias,
-                        column_name=column_alias,
-                    )
-                )
+    columns_to_coalesce: List[SqlExpressionNode] = [
+        SqlColumnReferenceExpression(
+            col_ref=SqlColumnReference(
+                table_alias=table_alias,
+                column_name=column_alias,
             )
-        return SqlFunctionExpression(
-            sql_function=SqlFunction.COALESCE,
-            sql_function_args=columns_to_coalesce,
         )
+        for table_alias in table_aliases
+    ]
+    return SqlFunctionExpression(
+        sql_function=SqlFunction.COALESCE,
+        sql_function_args=columns_to_coalesce,
+    )
 
 
 class CreateOnConditionForCombiningMetrics(InstanceSpecSetTransform[SqlExpressionNode]):
@@ -95,31 +93,29 @@ class CreateOnConditionForCombiningMetrics(InstanceSpecSetTransform[SqlExpressio
         )
 
     def transform(self, spec_set: InstanceSpecSet) -> SqlExpressionNode:  # noqa: D
-        equality_exprs = []
-
-        for dimension_spec in spec_set.dimension_specs:
-            equality_exprs.append(
-                self._make_equality_expr(
-                    column_alias=self._column_association_resolver.resolve_dimension_spec(dimension_spec).column_name
-                )
+        equality_exprs = [
+            self._make_equality_expr(
+                column_alias=self._column_association_resolver.resolve_dimension_spec(
+                    dimension_spec
+                ).column_name
             )
-
-        for time_dimension_spec in spec_set.time_dimension_specs:
-            equality_exprs.append(
-                self._make_equality_expr(
-                    column_alias=self._column_association_resolver.resolve_time_dimension_spec(
-                        time_dimension_spec
-                    ).column_name
-                )
+            for dimension_spec in spec_set.dimension_specs
+        ]
+        equality_exprs.extend(
+            self._make_equality_expr(
+                column_alias=self._column_association_resolver.resolve_time_dimension_spec(
+                    time_dimension_spec
+                ).column_name
             )
-
+            for time_dimension_spec in spec_set.time_dimension_specs
+        )
         for identifier_spec in spec_set.identifier_specs:
             column_associations = self._column_association_resolver.resolve_identifier_spec(identifier_spec)
             assert len(column_associations) == 1, "Composite identifiers not supported"
             column_association = column_associations[0]
 
             equality_exprs.append(self._make_equality_expr(column_alias=column_association.column_name))
-        assert len(equality_exprs) > 0
+        assert equality_exprs
 
         if len(equality_exprs) == 1:
             return equality_exprs[0]

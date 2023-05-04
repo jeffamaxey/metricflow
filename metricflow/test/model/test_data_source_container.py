@@ -105,15 +105,15 @@ def test_dimension_is_partitioned(new_data_source_semantics: DataSourceSemantics
 
 
 def test_elements_for_metric(new_metric_semantics: MetricSemantics) -> None:  # noqa: D
-    assert set(
-        [
-            x.qualified_name
-            for x in new_metric_semantics.element_specs_for_metrics(
-                [MetricSpec(element_name="views")],
-                without_any_property=frozenset({LinkableElementProperties.DERIVED_TIME_GRANULARITY}),
-            )
-        ]
-    ) == {
+    assert {
+        x.qualified_name
+        for x in new_metric_semantics.element_specs_for_metrics(
+            [MetricSpec(element_name="views")],
+            without_any_property=frozenset(
+                {LinkableElementProperties.DERIVED_TIME_GRANULARITY}
+            ),
+        )
+    } == {
         "create_a_cycle_in_the_join_graph",
         "create_a_cycle_in_the_join_graph__guest",
         "create_a_cycle_in_the_join_graph__host",
@@ -156,7 +156,7 @@ def test_elements_for_metric(new_metric_semantics: MetricSemantics) -> None:  # 
         with_any_property=frozenset({LinkableElementProperties.LOCAL}),
         without_any_property=frozenset({LinkableElementProperties.DERIVED_TIME_GRANULARITY}),
     )
-    assert set([x.qualified_name for x in local_specs]) == {
+    assert {x.qualified_name for x in local_specs} == {
         "create_a_cycle_in_the_join_graph",
         "ds",
         "ds_partitioned",
@@ -166,16 +166,18 @@ def test_elements_for_metric(new_metric_semantics: MetricSemantics) -> None:  # 
 
 
 def test_local_linked_elements_for_metric(new_metric_semantics: MetricSemantics) -> None:  # noqa: D
-    result = set(
-        [
-            x.qualified_name
-            for x in new_metric_semantics.element_specs_for_metrics(
-                [MetricSpec(element_name="listings")],
-                with_any_property=frozenset({LinkableElementProperties.LOCAL_LINKED}),
-                without_any_property=frozenset({LinkableElementProperties.DERIVED_TIME_GRANULARITY}),
-            )
-        ]
-    )
+    result = {
+        x.qualified_name
+        for x in new_metric_semantics.element_specs_for_metrics(
+            [MetricSpec(element_name="listings")],
+            with_any_property=frozenset(
+                {LinkableElementProperties.LOCAL_LINKED}
+            ),
+            without_any_property=frozenset(
+                {LinkableElementProperties.DERIVED_TIME_GRANULARITY}
+            ),
+        )
+    }
 
     assert result == {
         "listing__created_at",

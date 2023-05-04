@@ -62,15 +62,12 @@ class TimeSpineSource:
             date_spine_table_datetime_data: List[Tuple[datetime.datetime]] = []
             date_spine_table_str_data: List[Tuple[str]] = []
 
-            if self._sql_client.sql_engine_attributes.timestamp_type_supported:
-                while current_date <= end_date:
+            while current_date <= end_date:
+                if self._sql_client.sql_engine_attributes.timestamp_type_supported:
                     date_spine_table_datetime_data.append((current_date,))
-                    current_date = current_date + datetime.timedelta(days=1)
-            else:
-                while current_date <= end_date:
+                else:
                     date_spine_table_str_data.append((current_date.strftime(ISO8601_PYTHON_FORMAT),))
-                    current_date = current_date + datetime.timedelta(days=1)
-
+                current_date = current_date + datetime.timedelta(days=1)
             self._sql_client.drop_table(self.spine_table)
             num_rows = (
                 len(date_spine_table_datetime_data)

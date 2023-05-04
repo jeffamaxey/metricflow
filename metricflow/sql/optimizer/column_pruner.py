@@ -48,20 +48,19 @@ class SqlColumnPrunerVisitor(SqlQueryPlanNodeVisitor[SqlQueryPlanNode]):
         i.e. this does not return expressions used in sub-queries. pruned_select_columns needs to be passed in since the
         node may have the select columns pruned.
         """
-        all_expr_search_results: List[SqlExpressionTreeLineage] = []
-
-        for select_column in pruned_select_columns:
-            all_expr_search_results.append(select_column.expr.lineage)
-
-        for join_description in select_node.join_descs:
-            all_expr_search_results.append(join_description.on_condition.lineage)
-
-        for group_by in select_node.group_bys:
-            all_expr_search_results.append(group_by.expr.lineage)
-
-        for order_by in select_node.order_bys:
-            all_expr_search_results.append(order_by.expr.lineage)
-
+        all_expr_search_results: List[SqlExpressionTreeLineage] = [
+            select_column.expr.lineage for select_column in pruned_select_columns
+        ]
+        all_expr_search_results.extend(
+            join_description.on_condition.lineage
+            for join_description in select_node.join_descs
+        )
+        all_expr_search_results.extend(
+            group_by.expr.lineage for group_by in select_node.group_bys
+        )
+        all_expr_search_results.extend(
+            order_by.expr.lineage for order_by in select_node.order_bys
+        )
         if select_node.where:
             all_expr_search_results.append(select_node.where.lineage)
 
@@ -81,8 +80,9 @@ class SqlColumnPrunerVisitor(SqlQueryPlanNodeVisitor[SqlQueryPlanNode]):
             pruned_from_source = node.from_source
         pruned_join_descriptions: List[SqlJoinDescription] = []
         for join_description in node.join_descs:
-            right_source_as_select_node = join_description.right_source.as_select_node
-            if right_source_as_select_node:
+            if (
+                right_source_as_select_node := join_description.right_source.as_select_node
+            ):
                 right_source_visitor = SqlColumnPrunerVisitor(
                     required_column_aliases={x.column_alias for x in right_source_as_select_node.select_columns}
                 )
@@ -118,7 +118,7 @@ class SqlColumnPrunerVisitor(SqlQueryPlanNodeVisitor[SqlQueryPlanNode]):
             if select_column.column_alias in self._required_column_aliases or select_column in node.group_bys
         )
 
-        if len(pruned_select_columns) == 0:
+        if not pruned_select_columns:
             raise RuntimeError("All columns have been pruned - this indicates an bug in the pruner or in the inputs.")
 
         # Based on the expressions in this select statement, figure out what column aliases are needed in the sources of
@@ -129,7 +129,10 @@ class SqlColumnPrunerVisitor(SqlQueryPlanNodeVisitor[SqlQueryPlanNode]):
         # impossible to know what columns can be pruned from the parent sources. So return a SELECT statement that
         # leaves the parent sources untouched. Columns from the grandparents can be pruned based on the parent node
         # though.
-        if any([string_expr.used_columns is None for string_expr in exprs_used_in_this_node.string_exprs]):
+        if any(
+            string_expr.used_columns is None
+            for string_expr in exprs_used_in_this_node.string_exprs
+        ):
             return self._prune_columns_from_grandparents(node, pruned_select_columns)
 
         # Create a mapping from the source alias to the column aliases needed from the corresponding source.

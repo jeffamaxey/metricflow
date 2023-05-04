@@ -198,11 +198,7 @@ class SnowflakeSqlClient(SqlAlchemySqlClient):
         df = self.query(
             f"SHOW TABLES IN {schema_name}",
         )
-        if df.empty:
-            return []
-
-        # Lower casing table names to be similar to other SQL clients. TBD on the implications of this.
-        return [t.lower() for t in df["name"]]
+        return [] if df.empty else [t.lower() for t in df["name"]]
 
     def generate_health_check_tests(self, schema_name: str) -> List[Tuple[str, Any]]:  # type: ignore # noqa: D
         additional_tests = [

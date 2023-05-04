@@ -36,11 +36,13 @@ from metricflow.dataflow.dataflow_plan import (
 class DataflowPlanNodeCost(ABC):
     """Represents the cost to compute the data flow up to a given node."""
 
-    def __lt__(self, other: Any) -> bool:  # type: ignore
+    def __lt__(self, other: Any) -> bool:    # type: ignore
         """Implement < so that lists with this can be sorted."""
-        if not isinstance(other, DataflowPlanNodeCost):
-            return NotImplemented
-        return self.as_int < other.as_int
+        return (
+            self.as_int < other.as_int
+            if isinstance(other, DataflowPlanNodeCost)
+            else NotImplemented
+        )
 
     @property
     @abstractmethod
@@ -63,8 +65,8 @@ class DefaultCost(DataflowPlanNodeCost):
     @staticmethod
     def sum(costs: Sequence[DefaultCost]) -> DefaultCost:  # noqa: D
         return DefaultCost(
-            num_joins=sum([x.num_joins for x in costs]),
-            num_aggregations=sum([x.num_aggregations for x in costs]),
+            num_joins=sum(x.num_joins for x in costs),
+            num_aggregations=sum(x.num_aggregations for x in costs),
         )
 
 

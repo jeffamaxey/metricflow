@@ -20,7 +20,7 @@ DOCUMENT_TYPES = [METRIC_TYPE, DATA_SOURCE_TYPE, MATERIALIZATION_TYPE]
 logger = logging.getLogger(__name__)
 
 
-def validate_config_structure(config_yaml: YamlFile) -> None:  # noqa: D
+def validate_config_structure(config_yaml: YamlFile) -> None:    # noqa: D
     """Validates config shape against jsonschema
 
     catches ValidationError and raise one exception at the end so
@@ -50,9 +50,7 @@ def validate_config_structure(config_yaml: YamlFile) -> None:  # noqa: D
                     data_source_validator.validate(config_document[document_type])
                 elif document_type == MATERIALIZATION_TYPE:
                     materialization_validator.validate(config_document[document_type])
-                elif document_type == VERSION_KEY:
-                    pass
-                else:
+                elif document_type != VERSION_KEY:
                     raise ParsingException(
                         f"Invalid document type '{document_type}'. Valid document types are: {DOCUMENT_TYPES}",
                         config_yaml=config_yaml,
@@ -61,5 +59,5 @@ def validate_config_structure(config_yaml: YamlFile) -> None:  # noqa: D
                 errors.append(f"{e}")
                 logger.exception(str(e))
 
-    if len(errors) > 0:
+    if errors:
         raise exceptions.ValidationError("\n".join(errors))

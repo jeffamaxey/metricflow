@@ -290,12 +290,14 @@ class SqlStringExpression(SqlExpressionNode):
         return SqlExpressionTreeLineage(string_exprs=(self,))
 
     def matches(self, other: SqlExpressionNode) -> bool:  # noqa: D
-        if not isinstance(other, SqlStringExpression):
-            return False
         return (
-            self.sql_expr == other.sql_expr
-            and self.used_columns == other.used_columns
-            and self.execution_parameters == other.execution_parameters
+            (
+                self.sql_expr == other.sql_expr
+                and self.used_columns == other.used_columns
+                and self.execution_parameters == other.execution_parameters
+            )
+            if isinstance(other, SqlStringExpression)
+            else False
         )
 
     def as_string_expression(self) -> Optional[SqlStringExpression]:
@@ -352,9 +354,11 @@ class SqlStringLiteralExpression(SqlExpressionNode):
         return SqlExpressionTreeLineage(other_exprs=(self,))
 
     def matches(self, other: SqlExpressionNode) -> bool:  # noqa: D
-        if not isinstance(other, SqlStringLiteralExpression):
-            return False
-        return self.literal_value == other.literal_value
+        return (
+            self.literal_value == other.literal_value
+            if isinstance(other, SqlStringLiteralExpression)
+            else False
+        )
 
 
 @dataclass(frozen=True)
@@ -423,18 +427,19 @@ class SqlColumnReferenceExpression(SqlExpressionNode):
             should_render_table_alias = True
 
         if column_replacements:
-            replacement = column_replacements.get_replacement(self.col_ref)
-            if replacement:
-                if should_render_table_alias is not None:
-                    return replacement.rewrite(should_render_table_alias=should_render_table_alias)
-                else:
-                    return replacement
-            else:
-                if should_render_table_alias is not None:
-                    return SqlColumnReferenceExpression(
-                        col_ref=self.col_ref, should_render_table_alias=should_render_table_alias
+            if replacement := column_replacements.get_replacement(self.col_ref):
+                return (
+                    replacement.rewrite(
+                        should_render_table_alias=should_render_table_alias
                     )
-                return self
+                    if should_render_table_alias is not None
+                    else replacement
+                )
+            if should_render_table_alias is not None:
+                return SqlColumnReferenceExpression(
+                    col_ref=self.col_ref, should_render_table_alias=should_render_table_alias
+                )
+            return self
 
         if should_render_table_alias is not None:
             return SqlColumnReferenceExpression(
@@ -454,9 +459,11 @@ class SqlColumnReferenceExpression(SqlExpressionNode):
         return self._should_render_table_alias
 
     def matches(self, other: SqlExpressionNode) -> bool:  # noqa: D
-        if not isinstance(other, SqlColumnReferenceExpression):
-            return False
-        return self.col_ref == other.col_ref
+        return (
+            self.col_ref == other.col_ref
+            if isinstance(other, SqlColumnReferenceExpression)
+            else False
+        )
 
 
 class SqlColumnAliasReferenceExpression(SqlExpressionNode):
@@ -513,9 +520,11 @@ class SqlColumnAliasReferenceExpression(SqlExpressionNode):
         return SqlExpressionTreeLineage(column_alias_reference_exprs=(self,))
 
     def matches(self, other: SqlExpressionNode) -> bool:  # noqa: D
-        if not isinstance(other, SqlColumnAliasReferenceExpression):
-            return False
-        return self.column_alias == other.column_alias
+        return (
+            self.column_alias == other.column_alias
+            if isinstance(other, SqlColumnAliasReferenceExpression)
+            else False
+        )
 
 
 class SqlComparison(Enum):  # noqa: D
@@ -598,9 +607,11 @@ class SqlComparisonExpression(SqlExpressionNode):
         )
 
     def matches(self, other: SqlExpressionNode) -> bool:  # noqa: D
-        if not isinstance(other, SqlComparisonExpression):
-            return False
-        return self.comparison == other.comparison and self._parents_match(other)
+        return (
+            self.comparison == other.comparison and self._parents_match(other)
+            if isinstance(other, SqlComparisonExpression)
+            else False
+        )
 
 
 class SqlFunction(Enum):
@@ -756,9 +767,11 @@ class SqlFunctionExpression(SqlExpressionNode):
         )
 
     def matches(self, other: SqlExpressionNode) -> bool:  # noqa: D
-        if not isinstance(other, SqlFunctionExpression):
-            return False
-        return self.sql_function == other.sql_function and self._parents_match(other)
+        return (
+            self.sql_function == other.sql_function and self._parents_match(other)
+            if isinstance(other, SqlFunctionExpression)
+            else False
+        )
 
 
 class SqlNullExpression(SqlExpressionNode):
@@ -854,9 +867,11 @@ class SqlLogicalExpression(SqlExpressionNode):
         )
 
     def matches(self, other: SqlExpressionNode) -> bool:  # noqa: D
-        if not isinstance(other, SqlLogicalExpression):
-            return False
-        return self.operator == other.operator and self._parents_match(other)
+        return (
+            self.operator == other.operator and self._parents_match(other)
+            if isinstance(other, SqlLogicalExpression)
+            else False
+        )
 
 
 class SqlIsNullExpression(SqlExpressionNode):
@@ -897,9 +912,11 @@ class SqlIsNullExpression(SqlExpressionNode):
         return SqlExpressionTreeLineage.combine([self.arg.lineage, SqlExpressionTreeLineage(other_exprs=(self,))])
 
     def matches(self, other: SqlExpressionNode) -> bool:  # noqa: D
-        if not isinstance(other, SqlIsNullExpression):
-            return False
-        return self._parents_match(other)
+        return (
+            self._parents_match(other)
+            if isinstance(other, SqlIsNullExpression)
+            else False
+        )
 
 
 class SqlTimeDeltaExpression(SqlExpressionNode):
@@ -968,13 +985,15 @@ class SqlTimeDeltaExpression(SqlExpressionNode):
         )
 
     def matches(self, other: SqlExpressionNode) -> bool:  # noqa: D
-        if not isinstance(other, SqlTimeDeltaExpression):
-            return False
         return (
-            self.count == other.count
-            and self.granularity == other.granularity
-            and self.grain_to_date == other.grain_to_date
-            and self._parents_match(other)
+            (
+                self.count == other.count
+                and self.granularity == other.granularity
+                and self.grain_to_date == other.grain_to_date
+                and self._parents_match(other)
+            )
+            if isinstance(other, SqlTimeDeltaExpression)
+            else False
         )
 
 
@@ -1018,9 +1037,11 @@ class SqlCastToTimestampExpression(SqlExpressionNode):
         )
 
     def matches(self, other: SqlExpressionNode) -> bool:  # noqa: D
-        if not isinstance(other, SqlCastToTimestampExpression):
-            return False
-        return self._parents_match(other)
+        return (
+            self._parents_match(other)
+            if isinstance(other, SqlCastToTimestampExpression)
+            else False
+        )
 
 
 class SqlDateTruncExpression(SqlExpressionNode):
@@ -1076,9 +1097,12 @@ class SqlDateTruncExpression(SqlExpressionNode):
         )
 
     def matches(self, other: SqlExpressionNode) -> bool:  # noqa: D
-        if not isinstance(other, SqlDateTruncExpression):
-            return False
-        return self.time_granularity == other.time_granularity and self._parents_match(other)
+        return (
+            self.time_granularity == other.time_granularity
+            and self._parents_match(other)
+            if isinstance(other, SqlDateTruncExpression)
+            else False
+        )
 
 
 class SqlRatioComputationExpression(SqlExpressionNode):
@@ -1141,6 +1165,8 @@ class SqlRatioComputationExpression(SqlExpressionNode):
         )
 
     def matches(self, other: SqlExpressionNode) -> bool:  # noqa: D
-        if not isinstance(other, SqlRatioComputationExpression):
-            return False
-        return self._parents_match(other)
+        return (
+            self._parents_match(other)
+            if isinstance(other, SqlRatioComputationExpression)
+            else False
+        )

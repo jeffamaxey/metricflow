@@ -120,27 +120,27 @@ class ConfiguredIntegrationTestCaseRepository:
 
                 # retrieve last top-level key as type
                 document_type = next(iter(config_document.keys()))
-                object_cfg = config_document[document_type]
-                if document_type == DOCUMENT_KEY:
-                    try:
-                        del object_cfg["__parsing_context__"]
-                        results.append(ConfiguredIntegrationTestCase(**object_cfg, file_path=file_path))
-                    except Exception as e:
-                        raise TestCaseParseException(f"Error while parsing: {file_path}") from e
-                else:
+                if document_type != DOCUMENT_KEY:
                     raise TestCaseParseException(f"Expected {DOCUMENT_KEY}, but got {document_type}")
+                object_cfg = config_document[document_type]
+                try:
+                    del object_cfg["__parsing_context__"]
+                    results.append(ConfiguredIntegrationTestCase(**object_cfg, file_path=file_path))
+                except Exception as e:
+                    raise TestCaseParseException(f"Error while parsing: {file_path}") from e
         return results
 
     @staticmethod
-    def _find_all_yaml_file_paths(directory: str) -> Sequence[str]:  # noqa: D
+    def _find_all_yaml_file_paths(directory: str) -> Sequence[str]:    # noqa: D
         """Recursively search through the given directory for YAML files."""
         test_case_file_paths = []
 
         for root, dirs, files in os.walk(directory):
-            for file in files:
-                if file.endswith(".yaml"):
-                    test_case_file_paths.append(os.path.join(root, file))
-
+            test_case_file_paths.extend(
+                os.path.join(root, file)
+                for file in files
+                if file.endswith(".yaml")
+            )
         return sorted(test_case_file_paths)
 
     def get_all_test_case_names(self) -> Sequence[str]:

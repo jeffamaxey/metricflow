@@ -178,7 +178,7 @@ class DefaultSqlExpressionRenderer(SqlExpressionRenderer):
         # )
 
         if render_in_one_line:
-            return arg_rendered.sql if not requires_parenthesis else f"({arg_rendered.sql})"
+            return f"({arg_rendered.sql})" if requires_parenthesis else arg_rendered.sql
         else:
             return (
                 jinja2.Template(
@@ -198,7 +198,9 @@ class DefaultSqlExpressionRenderer(SqlExpressionRenderer):
         arg_rendered = self.render_sql_expr(node.arg)
 
         return SqlExpressionRenderResult(
-            sql=f"{arg_rendered.sql} IS NULL" if not node.arg.requires_parenthesis else f"({arg_rendered.sql}) IS NULL",
+            sql=f"({arg_rendered.sql}) IS NULL"
+            if node.arg.requires_parenthesis
+            else f"{arg_rendered.sql} IS NULL",
             execution_parameters=arg_rendered.execution_parameters,
         )
 

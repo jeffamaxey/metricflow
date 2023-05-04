@@ -43,9 +43,8 @@ def replace_dataset_id_hash(text: str) -> str:
     """
     pattern = re.compile(r"'[a-zA-Z0-9_]+__[a-zA-Z0-9_]+__(?P<hash>[a-zA-Z0-9_]+)'")
     while True:
-        match = pattern.search(text)
-        if match:
-            data_set_id_hash = match.group("hash")
+        if match := pattern.search(text):
+            data_set_id_hash = match["hash"]
             # Replace with the same length to preserve indents
             text = text.replace(data_set_id_hash, PLACEHOLDER_CHAR_FOR_INCOMPARABLE_STRINGS * len(data_set_id_hash))
         else:
@@ -73,7 +72,7 @@ def snapshot_path_prefix(
     .../snapshots/test_file.py/DataflowPlan/test_name__plan1.svg
     """
     test_name = request.node.name
-    snapshot_file_name = test_name + "__" + snapshot_id
+    snapshot_file_name = f"{test_name}__{snapshot_id}"
     path_items: List[str] = []
 
     test_file_path_items = os.path.normpath(request.node.fspath).split(os.sep)
@@ -186,7 +185,7 @@ def assert_snapshot_text_equal(
                 f"{mf_test_session_state.max_plans_displayed} "
                 f"plans displayed."
             )
-        webbrowser.open("file://" + file_path)
+        webbrowser.open(f"file://{file_path}")
         mf_test_session_state.plans_displayed += 1
 
     # Read the existing plan from the file and compare with the actual plan

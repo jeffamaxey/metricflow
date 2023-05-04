@@ -50,9 +50,7 @@ def cli(cfg: CLIContext, verbose: bool) -> None:  # noqa: D
     cfg.verbose = verbose
 
     checker = UpdateChecker()
-    result = checker.check(PACKAGE_NAME, pkg_version(PACKAGE_NAME))
-    # result is None when an update was not found or a failure occurred
-    if result:
+    if result := checker.check(PACKAGE_NAME, pkg_version(PACKAGE_NAME)):
         click.secho(
             "‼️ Warning: A new version of the MetricFlow CLI is available.",
             bold=True,
@@ -177,12 +175,13 @@ def tutorial(ctx: click.core.Context, cfg: CLIContext, msg: bool, skip_dw: bool,
     # Seed sample data into data warehouse
     spinner = Halo(text="🤖 Generating sample data...", spinner="dots")
     spinner.start()
-    created = create_sample_data(sql_client=cfg.sql_client, system_schema=cfg.mf_system_schema)
-    if not created:
-        spinner.warn("🙊 The tables already exists, halting the creation of sample tables.")
-    else:
+    if created := create_sample_data(
+        sql_client=cfg.sql_client, system_schema=cfg.mf_system_schema
+    ):
         spinner.succeed("📀 Sample tables have been successfully created into your data warehouse.")
 
+    else:
+        spinner.warn("🙊 The tables already exists, halting the creation of sample tables.")
     # Seed sample model file
     model_path = os.path.join(cfg.config.dir_path, "sample_models")
     if not os.path.exists(model_path):
@@ -311,12 +310,10 @@ def query(
             # csv is a LazyFile that is file-like that works in this case.
             df.to_csv(csv, index=False)  # type: ignore
             click.echo(f"🖨 Successfully written query output to {csv.name}")
+        elif parse(pd.__version__) >= parse("1.1.0"):
+            click.echo(df.to_markdown(index=False, floatfmt=f".{decimals}f"))
         else:
-            # NOTE: remove `to_string` if no pandas dependency is < 1.1.0
-            if parse(pd.__version__) >= parse("1.1.0"):
-                click.echo(df.to_markdown(index=False, floatfmt=f".{decimals}f"))
-            else:
-                click.echo(df.to_string(index=False, float_format=lambda x: format(x, f".{decimals}f")))
+            click.echo(df.to_string(index=False, float_format=lambda x: format(x, f".{decimals}f")))
 
         if display_plans:
             svg_path = display_dag_as_svg(query_result.dataflow_plan, cfg.config.dir_path)
@@ -567,9 +564,9 @@ def drop_materialization(cfg: CLIContext, materialization_name: str) -> None:
     spinner = Halo(text="Initiating drop materialization query…", spinner="dots")
     spinner.start()
 
-    result = cfg.mf.drop_materialization(materialization_name=materialization_name)
-
-    if result:
+    if result := cfg.mf.drop_materialization(
+        materialization_name=materialization_name
+    ):
         spinner.succeed(f"Success 🦄 - drop materialization query completed after {time.time() - start:.2f} seconds.")
     else:
         spinner.warn(f"Materialized table for `{materialization_name}` did not exist, no table was dropped")

@@ -72,10 +72,16 @@ def mf_test_session_state(request: FixtureRequest) -> MetricFlowTestSessionState
     return MetricFlowTestSessionState(
         sql_engine_url=engine_url,
         sql_engine_password=engine_password,
-        mf_system_schema=mf_system_schema,
         mf_source_schema=mf_source_schema,
-        display_plans=bool(request.config.getoption(DISPLAY_PLANS_CLI_FLAG, default=False)),
-        overwrite_snapshots=bool(request.config.getoption(OVERWRITE_SNAPSHOTS_CLI_FLAG, default=False)),
+        mf_source_schema=mf_source_schema,
+        display_plans=bool(
+            request.config.getoption(DISPLAY_PLANS_CLI_FLAG, default=False)
+        ),
+        overwrite_snapshots=bool(
+            request.config.getoption(
+                OVERWRITE_SNAPSHOTS_CLI_FLAG, default=False
+            )
+        ),
         plans_displayed=0,
         max_plans_displayed=6,
     )

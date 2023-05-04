@@ -23,7 +23,6 @@ class MetricMeasuresRule(ModelValidationRule):
     def _validate_metric_measure_references(
         metric: Metric, valid_measure_names: List[str]
     ) -> List[ValidationIssueType]:
-        issues: List[ValidationIssueType] = []
         measures_in_metric = []
 
         if metric.type_params:
@@ -34,16 +33,16 @@ class MetricMeasuresRule(ModelValidationRule):
             if metric.type_params.denominator:
                 measures_in_metric.append(metric.type_params.denominator)
 
-        for measure_in_metric in measures_in_metric:
-            if measure_in_metric.element_name not in valid_measure_names:
-                issues.append(
-                    ValidationFatal(
-                        model_object_reference=ValidationIssue.make_object_reference(
-                            metric_name=metric.name,
-                        ),
-                        message=f"Invalid measure {measure_in_metric.element_name} in metric {metric.name}",
-                    )
-                )
+        issues: List[ValidationIssueType] = [
+            ValidationFatal(
+                model_object_reference=ValidationIssue.make_object_reference(
+                    metric_name=metric.name,
+                ),
+                message=f"Invalid measure {measure_in_metric.element_name} in metric {metric.name}",
+            )
+            for measure_in_metric in measures_in_metric
+            if measure_in_metric.element_name not in valid_measure_names
+        ]
         return issues
 
     @staticmethod
@@ -52,9 +51,9 @@ class MetricMeasuresRule(ModelValidationRule):
         issues: List[ValidationIssueType] = []
         valid_measure_names = []
         for data_source in model.data_sources:
-            for measure in data_source.measures:
-                valid_measure_names.append(measure.name.element_name)
-
+            valid_measure_names.extend(
+                measure.name.element_name for measure in data_source.measures
+            )
         for metric in model.metrics or []:
             issues += MetricMeasuresRule._validate_metric_measure_references(
                 metric=metric, valid_measure_names=valid_measure_names

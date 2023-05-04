@@ -163,14 +163,14 @@ class LinkableElementSet:
             flatten_nested_sequence([x.ambiguous_linkable_identifiers for x in linkable_element_sets])
         )
 
-        for _, grouped_linkable_dimensions in key_to_linkable_dimension.items():
+        for grouped_linkable_dimensions in key_to_linkable_dimension.values():
             for linkable_dimension in grouped_linkable_dimensions:
                 if len(grouped_linkable_dimensions) == 1:
                     linkable_dimensions.append(linkable_dimension)
                 else:
                     ambiguous_linkable_dimensions.append(linkable_dimension)
 
-        for _, grouped_linkable_identifier in key_to_linkable_identifier.items():
+        for grouped_linkable_identifier in key_to_linkable_identifier.values():
             for linkable_identifier in grouped_linkable_identifier:
                 if len(grouped_linkable_identifier) == 1:
                     linkable_identifiers.append(linkable_identifier)
@@ -198,7 +198,10 @@ class LinkableElementSet:
         # Need to find an easier syntax for finding the common items from multiple LinkableElementSets.
         common_linkable_dimensions = (
             set.intersection(
-                *[set([y.after_intersection for y in x.linkable_dimensions]) for x in linkable_element_sets]
+                *[
+                    {y.after_intersection for y in x.linkable_dimensions}
+                    for x in linkable_element_sets
+                ]
             )
             if len(linkable_element_sets) > 0
             else set()
@@ -206,7 +209,10 @@ class LinkableElementSet:
 
         common_linkable_identifiers = (
             set.intersection(
-                *[set([y.after_intersection for y in x.linkable_identifiers]) for x in linkable_element_sets]
+                *[
+                    {y.after_intersection for y in x.linkable_identifiers}
+                    for x in linkable_element_sets
+                ]
             )
             if len(linkable_element_sets) > 0
             else set()
@@ -214,7 +220,10 @@ class LinkableElementSet:
 
         common_ambiguous_linkable_dimensions = (
             set.intersection(
-                *[set([y.after_intersection for y in x.ambiguous_linkable_dimensions]) for x in linkable_element_sets]
+                *[
+                    {y.after_intersection for y in x.ambiguous_linkable_dimensions}
+                    for x in linkable_element_sets
+                ]
             )
             if len(linkable_element_sets) > 0
             else set()
@@ -222,7 +231,13 @@ class LinkableElementSet:
 
         common_ambiguous_linkable_identifiers = (
             set.intersection(
-                *[set([y.after_intersection for y in x.ambiguous_linkable_identifiers]) for x in linkable_element_sets]
+                *[
+                    {
+                        y.after_intersection
+                        for y in x.ambiguous_linkable_identifiers
+                    }
+                    for x in linkable_element_sets
+                ]
             )
             if len(linkable_element_sets) > 0
             else set()
@@ -361,8 +376,6 @@ class DataSourceJoinPath:
         data_source = self.path_elements[-1].data_source
 
         linkable_dimensions = []
-        linkable_identifiers = []
-
         for dimension in data_source.dimensions:
             dimension_type = dimension.type
             if dimension_type == DimensionType.CATEGORICAL:
@@ -384,17 +397,17 @@ class DataSourceJoinPath:
             else:
                 raise RuntimeError(f"Unhandled type: {dimension_type}")
 
-        for identifier in data_source.identifiers:
-            # Avoid creating "booking_id__booking_id"
-            if identifier.name.element_name != identifier_links[-1]:
-                linkable_identifiers.append(
-                    LinkableIdentifier(
-                        element_name=identifier.name.element_name,
-                        identifier_links=identifier_links,
-                        properties=with_properties.union({LinkableElementProperties.IDENTIFIER}),
-                    )
-                )
-
+        linkable_identifiers = [
+            LinkableIdentifier(
+                element_name=identifier.name.element_name,
+                identifier_links=identifier_links,
+                properties=with_properties.union(
+                    {LinkableElementProperties.IDENTIFIER}
+                ),
+            )
+            for identifier in data_source.identifiers
+            if identifier.name.element_name != identifier_links[-1]
+        ]
         return LinkableElementSet(
             linkable_dimensions=tuple(linkable_dimensions),
             linkable_identifiers=tuple(linkable_identifiers),
@@ -448,20 +461,23 @@ class ValidLinkableSpecResolver:
 
         start_time = time.time()
         for metric in self._user_configured_model.metrics:
-            linkable_sets_for_measure = []
-            for measure in metric.measure_names:
-                linkable_sets_for_measure.append(self._get_linkable_element_set_for_measure(measure))
-
+            linkable_sets_for_measure = [
+                self._get_linkable_element_set_for_measure(measure)
+                for measure in metric.measure_names
+            ]
             self._metric_to_linkable_element_sets[metric.name] = linkable_sets_for_measure
         logger.info(f"Building the [metric -> valid linkable element] index took: {time.time() - start_time:.2f}s")
 
     def _get_data_source_for_measure(self, measure_reference: MeasureReference) -> DataSource:  # noqa: D
-        data_sources_where_measure_was_found = []
-        for data_source in self._data_sources:
-            if any([x.name.element_name == measure_reference.element_name for x in data_source.measures]):
-                data_sources_where_measure_was_found.append(data_source)
-
-        if len(data_sources_where_measure_was_found) == 0:
+        data_sources_where_measure_was_found = [
+            data_source
+            for data_source in self._data_sources
+            if any(
+                x.name.element_name == measure_reference.element_name
+                for x in data_source.measures
+            )
+        ]
+        if not data_sources_where_measure_was_found:
             raise ValueError(f"No data sources were found with {measure_reference} in the model")
         elif len(data_sources_where_measure_was_found) > 1:
             raise ValueError(
@@ -532,9 +548,7 @@ class ValidLinkableSpecResolver:
         )
 
     def _get_data_sources_with_joinable_identifier(self, identifier_name: str) -> Sequence[DataSource]:
-        # May switch to non-cached implementation.
-        data_sources = self._identifier_to_data_source[identifier_name]
-        return data_sources
+        return self._identifier_to_data_source[identifier_name]
 
     def _get_linkable_element_set_for_measure(self, measure_reference: MeasureReference) -> LinkableElementSet:
         """Get the valid linkable elements for the given measure."""
@@ -547,18 +561,18 @@ class ValidLinkableSpecResolver:
         # Create 1-hop elements
         for identifier in measure_data_source.identifiers:
             data_sources = self._get_data_sources_with_joinable_identifier(identifier.name.element_name)
-            for data_source in data_sources:
-                if data_source.name == measure_data_source.name:
-                    continue
-                join_paths.append(
-                    DataSourceJoinPath(
-                        path_elements=(
-                            DataSourceJoinPathElement(
-                                data_source=data_source, join_on_identifier=identifier.name.element_name
-                            ),
-                        )
+            join_paths.extend(
+                DataSourceJoinPath(
+                    path_elements=(
+                        DataSourceJoinPathElement(
+                            data_source=data_source,
+                            join_on_identifier=identifier.name.element_name,
+                        ),
                     )
                 )
+                for data_source in data_sources
+                if data_source.name != measure_data_source.name
+            )
         all_linkable_elements = LinkableElementSet.merge(
             [local_linkable_elements]
             + [
@@ -569,14 +583,14 @@ class ValidLinkableSpecResolver:
 
         # Create multi-hop elements. At each iteration, we generate the list of valid elements based on the current join
         # path, extend all paths to include the next valid data source, then repeat.
-        for i in range(self._max_identifier_links - 1):
+        for _ in range(self._max_identifier_links - 1):
             new_join_paths: List[DataSourceJoinPath] = []
             for join_path in join_paths:
                 new_join_paths.extend(
                     self._find_next_possible_paths(measure_data_source=measure_data_source, current_join_path=join_path)
                 )
 
-            if len(new_join_paths) == 0:
+            if not new_join_paths:
                 return all_linkable_elements
 
             all_linkable_elements = LinkableElementSet.merge(
@@ -622,7 +636,9 @@ class ValidLinkableSpecResolver:
         for identifier in data_source.identifiers:
             identifier_name = identifier.name.element_name
 
-            if identifier_name in set(x.join_on_identifier for x in current_join_path.path_elements):
+            if identifier_name in {
+                x.join_on_identifier for x in current_join_path.path_elements
+            }:
                 continue
 
             data_sources_that_can_be_joined = self._get_data_sources_with_joinable_identifier(identifier_name)

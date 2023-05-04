@@ -206,7 +206,8 @@ class DimensionSpec(LinkableInstanceSpec, ParseableField):  # noqa: D
         parsed_name = StructuredLinkableSpecName.from_name(name)
         return DimensionSpec(
             identifier_links=tuple(
-                [LinklessIdentifierSpec.from_element_name(idl) for idl in parsed_name.identifier_link_names]
+                LinklessIdentifierSpec.from_element_name(idl)
+                for idl in parsed_name.identifier_link_names
             ),
             element_name=parsed_name.element_name,
         )

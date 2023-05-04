@@ -15,13 +15,9 @@ from metricflow.model.objects.utils import HashableBaseModel
 logger = logging.getLogger(__name__)
 
 
-def assert_exactly_one_arg_set(**kwargs) -> None:  # type: ignore
+def assert_exactly_one_arg_set(**kwargs) -> None:    # type: ignore
     """Throws an assertion error if 0 or more than 1 argument is not None."""
-    num_set = 0
-    for value in kwargs.values():
-        if value:
-            num_set += 1
-
+    num_set = sum(1 for value in kwargs.values() if value)
     assert num_set == 1, f"{num_set} argument(s) set instead of 1 in arguments: {kwargs}"
 
 
@@ -29,7 +25,7 @@ def is_hashable_base_model(obj):  # type:ignore # noqa: D
     return isinstance(obj, HashableBaseModel)
 
 
-def _to_pretty_printable_object(obj):  # type: ignore
+def _to_pretty_printable_object(obj):    # type: ignore
     """Convert the object that will look nicely when fed into the PrettyPrinter.
 
     Main change is that dataclasses will have a field with the class name. In Python 3.10, the pretty printer class will
@@ -58,10 +54,7 @@ def _to_pretty_printable_object(obj):  # type: ignore
         return obj
 
     elif isinstance(obj, (list, tuple)):
-        result = []
-        for item in obj:
-            result.append(_to_pretty_printable_object(item))
-
+        result = [_to_pretty_printable_object(item) for item in obj]
         if isinstance(obj, list):
             return result
         elif isinstance(obj, tuple):
@@ -70,11 +63,12 @@ def _to_pretty_printable_object(obj):  # type: ignore
         assert False
 
     elif isinstance(obj, Mapping):
-        result = {}
-        for key, value in obj.items():
-            result[_to_pretty_printable_object(key)] = _to_pretty_printable_object(value)
-        return result
-
+        return {
+            _to_pretty_printable_object(key): _to_pretty_printable_object(
+                value
+            )
+            for key, value in obj.items()
+        }
     elif is_dataclass(obj):
         result = {"class": type(obj).__name__}
 
@@ -99,7 +93,7 @@ def pretty_format(obj) -> str:  # type: ignore
     return pprint.pformat(_to_pretty_printable_object(obj), width=80, sort_dicts=False)
 
 
-def pformat_big_objects(*args, **kwargs) -> str:  # type: ignore
+def pformat_big_objects(*args, **kwargs) -> str:    # type: ignore
     """Prints a series of objects with many fields in a pretty way.
 
     See _to_pretty_printable_object() for more context on this format. Looks like:
@@ -113,12 +107,9 @@ def pformat_big_objects(*args, **kwargs) -> str:  # type: ignore
      'join_linkable_instances_recipes': ()}
 
     """
-    items = []
-    for arg in args:
-        items.append(pretty_format(arg))
+    items = [pretty_format(arg) for arg in args]
     for key, value in kwargs.items():
-        items.append(f"{key}:")
-        items.append(textwrap.indent(pretty_format(value), prefix="    "))
+        items.extend((f"{key}:", textwrap.indent(pretty_format(value), prefix="    ")))
     return "\n".join(items)
 
 

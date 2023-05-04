@@ -98,15 +98,14 @@ class CreateSelectColumnsForInstances(InstanceSetTransform[SelectColumnSet]):
         }
 
         # Assert a 1:1 mapping between expected and existing
-        assert all([len(x) == 1 for x in column_matches.values()]), (
-            f"Did not find exactly one match for each expected column associations.  "
-            f"Expected -> existing mappings: {column_matches}"
-        )
-        existing_names = set([col.column_name for col in existing_column_associations])
+        assert all(
+            len(x) == 1 for x in column_matches.values()
+        ), f"Did not find exactly one match for each expected column associations.  Expected -> existing mappings: {column_matches}"
+        existing_names = {col.column_name for col in existing_column_associations}
         mapped_names = set()
         mapped_cols: List[str] = []
         for mapped_cols in column_matches.values():
-            mapped_names.update([col_name for col_name in mapped_cols])
+            mapped_names.update(list(mapped_cols))
         assert existing_names == mapped_names, (
             f"Not all existing columns were mapped. Existing: {existing_names}.  Mapped: {mapped_cols}, "
             f"{expected_column_associations} -- {existing_column_associations}"
@@ -294,14 +293,13 @@ class FilterLinkableInstancesWithLeadingLink(InstanceSetTransform[InstanceSet]):
         )
         filtered_identifier_instances = tuple(x for x in instance_set.identifier_instances if self._should_pass(x.spec))
 
-        output = InstanceSet(
+        return InstanceSet(
             measure_instances=instance_set.measure_instances,
             dimension_instances=filtered_dimension_instances,
             time_dimension_instances=filtered_time_dimension_instances,
             identifier_instances=filtered_identifier_instances,
             metric_instances=instance_set.metric_instances,
         )
-        return output
 
 
 class FilterElements(InstanceSetTransform[InstanceSet]):
@@ -327,7 +325,7 @@ class FilterElements(InstanceSetTransform[InstanceSet]):
         if self._include_specs:
             return any(x == element_spec for x in self._include_specs)
         elif self._exclude_specs:
-            return not any(x == element_spec for x in self._exclude_specs)
+            return all(x != element_spec for x in self._exclude_specs)
         assert False
 
     def transform(self, instance_set: InstanceSet) -> InstanceSet:  # noqa: D
@@ -350,16 +348,33 @@ class FilterElements(InstanceSetTransform[InstanceSet]):
         else:
             assert False, "Include specs or exclude specs should have been specified."
 
-        output = InstanceSet(
-            measure_instances=tuple(x for x in instance_set.measure_instances if self._should_pass(x.spec)),
-            dimension_instances=tuple(x for x in instance_set.dimension_instances if self._should_pass(x.spec)),
-            time_dimension_instances=tuple(
-                x for x in instance_set.time_dimension_instances if self._should_pass(x.spec)
+        return InstanceSet(
+            measure_instances=tuple(
+                x
+                for x in instance_set.measure_instances
+                if self._should_pass(x.spec)
             ),
-            identifier_instances=tuple(x for x in instance_set.identifier_instances if self._should_pass(x.spec)),
-            metric_instances=tuple(x for x in instance_set.metric_instances if self._should_pass(x.spec)),
+            dimension_instances=tuple(
+                x
+                for x in instance_set.dimension_instances
+                if self._should_pass(x.spec)
+            ),
+            time_dimension_instances=tuple(
+                x
+                for x in instance_set.time_dimension_instances
+                if self._should_pass(x.spec)
+            ),
+            identifier_instances=tuple(
+                x
+                for x in instance_set.identifier_instances
+                if self._should_pass(x.spec)
+            ),
+            metric_instances=tuple(
+                x
+                for x in instance_set.metric_instances
+                if self._should_pass(x.spec)
+            ),
         )
-        return output
 
 
 class ChangeMeasureAggregationState(InstanceSetTransform[InstanceSet]):
@@ -438,74 +453,66 @@ class ChangeAssociatedColumns(InstanceSetTransform[InstanceSet]):
         self._column_association_resolver = column_association_resolver
 
     def transform(self, instance_set: InstanceSet) -> InstanceSet:  # noqa: D
-        output_measure_instances = []
-        for input_measure_instance in instance_set.measure_instances:
-            output_measure_instances.append(
-                MeasureInstance(
-                    associated_columns=(
-                        self._column_association_resolver.resolve_measure_spec(
-                            measure_spec=input_measure_instance.spec
-                        ),
+        output_measure_instances = [
+            MeasureInstance(
+                associated_columns=(
+                    self._column_association_resolver.resolve_measure_spec(
+                        measure_spec=input_measure_instance.spec
                     ),
-                    spec=input_measure_instance.spec,
-                    defined_from=input_measure_instance.defined_from,
-                    source_time_dimension_reference=input_measure_instance.source_time_dimension_reference,
-                    aggregation_state=input_measure_instance.aggregation_state,
-                )
+                ),
+                spec=input_measure_instance.spec,
+                defined_from=input_measure_instance.defined_from,
+                source_time_dimension_reference=input_measure_instance.source_time_dimension_reference,
+                aggregation_state=input_measure_instance.aggregation_state,
             )
-
-        output_dimension_instances = []
-        for input_dimension_instance in instance_set.dimension_instances:
-            output_dimension_instances.append(
-                DimensionInstance(
-                    associated_columns=(
-                        self._column_association_resolver.resolve_dimension_spec(
-                            dimension_spec=input_dimension_instance.spec
-                        ),
+            for input_measure_instance in instance_set.measure_instances
+        ]
+        output_dimension_instances = [
+            DimensionInstance(
+                associated_columns=(
+                    self._column_association_resolver.resolve_dimension_spec(
+                        dimension_spec=input_dimension_instance.spec
                     ),
-                    spec=input_dimension_instance.spec,
-                    defined_from=input_dimension_instance.defined_from,
-                )
+                ),
+                spec=input_dimension_instance.spec,
+                defined_from=input_dimension_instance.defined_from,
             )
-
-        output_time_dimension_instances = []
-        for input_time_dimension_instance in instance_set.time_dimension_instances:
-            output_time_dimension_instances.append(
-                TimeDimensionInstance(
-                    associated_columns=(
-                        self._column_association_resolver.resolve_time_dimension_spec(
-                            time_dimension_spec=input_time_dimension_instance.spec
-                        ),
+            for input_dimension_instance in instance_set.dimension_instances
+        ]
+        output_time_dimension_instances = [
+            TimeDimensionInstance(
+                associated_columns=(
+                    self._column_association_resolver.resolve_time_dimension_spec(
+                        time_dimension_spec=input_time_dimension_instance.spec
                     ),
-                    spec=input_time_dimension_instance.spec,
-                    defined_from=input_time_dimension_instance.defined_from,
-                )
+                ),
+                spec=input_time_dimension_instance.spec,
+                defined_from=input_time_dimension_instance.defined_from,
             )
-
-        output_identifier_instances = []
-        for input_identifier_instance in instance_set.identifier_instances:
-            output_identifier_instances.append(
-                IdentifierInstance(
-                    associated_columns=self._column_association_resolver.resolve_identifier_spec(
-                        identifier_spec=input_identifier_instance.spec
+            for input_time_dimension_instance in instance_set.time_dimension_instances
+        ]
+        output_identifier_instances = [
+            IdentifierInstance(
+                associated_columns=self._column_association_resolver.resolve_identifier_spec(
+                    identifier_spec=input_identifier_instance.spec
+                ),
+                spec=input_identifier_instance.spec,
+                defined_from=input_identifier_instance.defined_from,
+            )
+            for input_identifier_instance in instance_set.identifier_instances
+        ]
+        output_metric_instances = [
+            MetricInstance(
+                associated_columns=(
+                    self._column_association_resolver.resolve_metric_spec(
+                        metric_spec=input_metric_instance.spec
                     ),
-                    spec=input_identifier_instance.spec,
-                    defined_from=input_identifier_instance.defined_from,
-                )
+                ),
+                spec=input_metric_instance.spec,
+                defined_from=input_metric_instance.defined_from,
             )
-
-        output_metric_instances = []
-        for input_metric_instance in instance_set.metric_instances:
-            output_metric_instances.append(
-                MetricInstance(
-                    associated_columns=(
-                        self._column_association_resolver.resolve_metric_spec(metric_spec=input_metric_instance.spec),
-                    ),
-                    spec=input_metric_instance.spec,
-                    defined_from=input_metric_instance.defined_from,
-                )
-            )
-
+            for input_metric_instance in instance_set.metric_instances
+        ]
         return InstanceSet(
             measure_instances=tuple(output_measure_instances),
             dimension_instances=tuple(output_dimension_instances),

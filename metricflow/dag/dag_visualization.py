@@ -32,7 +32,7 @@ def display_dag_as_svg(dag_graph: DagGraphT, mf_config_dir: str) -> str:
     svg_dir = os.path.join(mf_config_dir, "generated_svg")
     random_file_path = os.path.join(svg_dir, f"dag_{random_id()}")
     render_via_graphviz(dag_graph=dag_graph, file_path_without_svg_suffix=random_file_path)
-    return random_file_path + ".svg"
+    return f"{random_file_path}.svg"
 
 
 def render_via_graphviz(dag_graph: DagGraphT, file_path_without_svg_suffix: str) -> None:

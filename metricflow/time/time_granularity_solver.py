@@ -85,12 +85,15 @@ class TimeGranularitySolver:
     @staticmethod
     def _measures_for_metric(model: UserConfiguredModel) -> Dict[MetricModelReference, List[MeasureReference]]:
         """Given a model, return a dict that maps the name of the metric to the names of the measures used"""
-        metric_reference_to_measure_references: Dict[MetricModelReference, List[MeasureReference]] = {}
-        for metric in model.metrics:
-            metric_reference_to_measure_references[MetricModelReference(metric_name=metric.name)] = [
-                MeasureReference(element_name=measure.element_name) for measure in metric.measure_names
+        metric_reference_to_measure_references: Dict[
+            MetricModelReference, List[MeasureReference]
+        ] = {
+            MetricModelReference(metric_name=metric.name): [
+                MeasureReference(element_name=measure.element_name)
+                for measure in metric.measure_names
             ]
-
+            for metric in model.metrics
+        }
         return metric_reference_to_measure_references
 
     def local_dimension_granularity_range(

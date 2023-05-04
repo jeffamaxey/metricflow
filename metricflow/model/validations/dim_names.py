@@ -67,10 +67,10 @@ class DimensionAndIdentifierNameValidator:
         self._measure_to_associated_identifier_keys: Dict[MeasureReference, List[IdentifierKey]] = defaultdict(list)
         for data_source in model.data_sources:
             measure_references = [x.name for x in data_source.measures]
-            # List of identifiers and their types in the data source
-            identifier_keys: List[IdentifierKey] = []
-            for identifier in data_source.identifiers:
-                identifier_keys.append(IdentifierKey(identifier.name.element_name, identifier.type))
+            identifier_keys: List[IdentifierKey] = [
+                IdentifierKey(identifier.name.element_name, identifier.type)
+                for identifier in data_source.identifiers
+            ]
             for measure_reference in measure_references:
                 self._measure_to_associated_identifier_keys[measure_reference].extend(identifier_keys)
 
